@@ -18,7 +18,8 @@ find_package(pluginlib REQUIRED)
 
 add_library(rr_motor_controller 
   src/rr_motor_controller.cpp 
-  src/motor.cpp)
+  src/motor.cpp
+  src/encoder.cpp)
 add_library(rr_motor_controller::rr_motor_controller ALIAS rr_motor_controller)
 target_compile_features(rr_motor_controller PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 target_include_directories(rr_motor_controller PUBLIC
