@@ -37,7 +37,7 @@ enum class TickStatus : uint8_t
   HEALTHY = 0,         // Valid rising edge detected
   TIMEOUT = 1,         // No edge within configured timeout period
   NOISE_REJECTED = 2,  // Edge rejected (interval too short, likely electrical noise)
-  UNEXPECTED = 3,      // Condition occurred that was unexpected, this should be treated immeidate termination.
+  UNEXPECTED = 3,      // Condition occurred that was unexpected, this should be treated as immediate termination.
 };
 
 /**
@@ -47,7 +47,7 @@ enum class TickStatus : uint8_t
  *
  * @param gpio_pin  GPIO pin that sample is taken from.
  * @param delta_us Time elapsed since the last valid pulse in microseconds.
- *                 For OK status: time between valid pulses (use for velocity calculation)
+ *                 For HEALTHY status: time between valid pulses (use for velocity calculation)
  *                 For TIMEOUT status: time since last valid pulse to timeout
  *                 For NOISE_REJECTED status: the rejected (too-short) interval
  *
@@ -64,8 +64,7 @@ enum class TickStatus : uint8_t
 using EncoderTickCallback = std::function<void(int gpio_pin, uint32_t delta_us, uint32_t tick, TickStatus tick_status)>;
 
 /**
- * Controls motor encoder, this will uses a sensor such as a hall sensor to measure rotations of
- * motor.
+ * Controls motor encoder, uses a sensor such as a hall sensor to measure rotations of motor.
  */
 class MotorEncoder
 {
@@ -85,38 +84,21 @@ public:
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state);
 
 private:
-  // these are stored here for use in the on_activate method, as some motors may require access to the node and gpio
-  // plugin during activation, for example to set up publishers or subscribers, or to set up any interrupts that are
-  // required for the motor. this is not ideal, but it is necessary for some motors, and it is the responsibility of the
-  // implementer to ensure that the motor does not use the node or gpio plugin for any other purpose than what is
-  // required for activation. note that these are not shared pointers, as the motor does not own the node or gpio
-  // plugin, it is the responsibility of the motor controller node to ensure that the node and gpio plugin are valid for
-  // the lifetime of the motor, and it is the responsibility of the implementer to ensure that the motor does not use
-  // the node or gpio plugin after they have been destroyed. note that these are not references, as the motor may need
-  // to store them for use in the on_activate method, and it is not guaranteed that the node and gpio plugin will be
-  // valid for the lifetime of the motor, so it is the responsibility of the implementer to ensure that the motor does
-  // not use the node or gpio plugin after they have been destroyed. note that these are not raw pointers, as the motor
-  // does not own the node or gpio plugin, and it is the responsibility of the motor controller node to ensure that the
-  // node and gpio plugin are valid for the lifetime of the motor, so it is the responsibility of the implementer to
-  // ensure that the motor does not use the node or gpio plugin after they have been destroyed. note that these are not
-  // weak pointers, as the motor does not own the node or gpio plugin, and it is the responsibility of the motor
-  // controller node to ensure that the node and gpio plugin are valid for the lifetime of the motor, so it is the
-  // responsibility of the implementer to ensure that the motor does not use the node or gpio plugin after they have
-  // been destroyed. note that these are not unique pointers, as the motor does not own the node or gpio plugin, and it
-  // is the responsibility of the motor controller node to ensure that the node and gpio plugin are valid for the
-  // lifetime of the motor, so it is the responsibility of the implementer to ensure that the motor does not use the
-  // node or gpio plugin after they have been destroyed.
+  // Shared pointers to the node and GPIO plugin, stored during configure() for use in on_activate()
+  // and on_deactivate(). The encoder does not own these — the motor controller node is responsible
+  // for ensuring they remain valid for the encoder's lifetime.
   rclcpp_lifecycle::LifecycleNode::SharedPtr node_;
   std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin_;
 
   /**
-   * Called after each pulse. This method will trigger tick_cb which will trigger handler.
+   * Static ISR wrapper for C function pointer compatibility. Delegates to handle_interrupt(),
+   * which computes delta_us and invokes tick_cb_.
    */
   static void gpio_isr_func(int gpio, int level, uint32_t tick, void* userdata);
 
   void handle_interrupt(int gpio, int level, uint32_t tick);
 
-  // last tick, this should be set during configuration for initial tick.
+  // last tick, set during on_activate() to seed the initial delta_us calculation.
   uint32_t last_tick_{ 0 };
   int pin_{ -1 };
   int timeout_{ 0 };
