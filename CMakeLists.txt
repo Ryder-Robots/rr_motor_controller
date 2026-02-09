@@ -84,6 +84,13 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
   target_link_libraries(test_motor rr_motor_controller)
+
+  # Add Encoder unit tests
+  ament_add_gtest(test_encoder test/test_encoder.cpp)
+  target_include_directories(test_encoder PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+  target_link_libraries(test_encoder rr_motor_controller)
 endif()
 
 ament_export_include_directories(
