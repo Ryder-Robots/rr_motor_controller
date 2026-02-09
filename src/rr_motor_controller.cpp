@@ -21,6 +21,7 @@
 
 // TODO: 
 // * Critical
+// ** Fix Duty cycle it needs to be offset.
 // ** Craete subscriber
 // ** Create publisher
 // * Next Release
