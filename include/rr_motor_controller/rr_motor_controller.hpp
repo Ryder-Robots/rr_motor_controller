@@ -95,7 +95,7 @@ private:
   const std::string CMD_TOPIC = rr_constants::TOPIC_MOTOR;
 
   rclcpp_lifecycle::LifecyclePublisher<rr_interfaces::msg::MotorResponse>::SharedPtr publisher_ {nullptr};
-  rclcpp::Subscription<rr_interfaces::msg::Motors>::SharedPtr subscriber_ {nullptr};
+  rclcpp::Subscription<rr_interfaces::msg::Motors>::SharedPtr subscription_ {nullptr};
 };
 
 }  // namespace rr_motor_controller

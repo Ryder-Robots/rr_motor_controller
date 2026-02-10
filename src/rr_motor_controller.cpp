@@ -18,8 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
-// TODO: 
+// TODO:
 // * Critical
 // ** Fix Duty cycle it needs to be offset.
 // ** Craete subscriber
@@ -50,7 +49,7 @@ CallbackReturn RrMotorController::on_configure(const State& state)
   }
 
   // compute dpp here, to avoid calculations in callbacks.
-  dpp_ = (2 * M_PI * wheel_radius_)/ (ppr_ * 1000.0);
+  dpp_ = (2 * M_PI * wheel_radius_) / (ppr_ * 1000.0);
 
   // attempt to load the plugin.
   declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
@@ -103,18 +102,25 @@ CallbackReturn RrMotorController::on_activate(const State& state)
 {
   if (motor_.on_activate(state) != CallbackReturn::SUCCESS)
   {
-    // this->create_subscription();
-    // this->create_publisher();
+    RCLCPP_ERROR(get_logger(), "Motor activation failed!!");
     return CallbackReturn::FAILURE;
   }
 
   if (encoder_.on_activate(state) != CallbackReturn::SUCCESS)
   {
+    // call this here,
+    motor_.on_deactivate(state);
+    RCLCPP_ERROR(get_logger(), "Encoder activation failed!!");
     return CallbackReturn::FAILURE;
   }
 
   // setup subscription and publisher.
-
+  subscription_ = create_subscription<rr_interfaces::msg::Motors>(rr_constants::TOPIC_MOTOR, rclcpp::SensorDataQoS(),
+                                                                  std::bind(&RrMotorController::subscribe_callback_, this, std::placeholders::_1));
+  std::string topic = rr_constants::TOPIC_MOTOR + std::to_string(motor_pos_) + "/stats";
+  rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
+  publisher_ = create_publisher<rr_interfaces::msg::MotorResponse>(topic, rclcpp::SensorDataQoS(), options);
+  running_.store(true, std::memory_order_release);
   return CallbackReturn::SUCCESS;
 }
 
@@ -136,9 +142,7 @@ void RrMotorController::publish_callback_()
 void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& req)
 {
   // Do not log, this could significantly slow processing.
-
-  // 1,000,000 / vel
-
+  //TODO: This was somehow reverted and needs to be fixed!!!!
   if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
   {
     double duty = 1'000'000.0 / (static_cast<double>(req.motors.at(motor_pos_).velocity) / dpp_);
