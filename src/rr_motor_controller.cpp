@@ -135,6 +135,9 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
   publisher_ = nullptr;
   subscription_ = nullptr;
 
+  sub_timer_.reset();
+  pid_timer_.reset();
+
   // Deactivate hardware — continue through failures to ensure both are attempted.
   CallbackReturn rv = CallbackReturn::SUCCESS;
 
@@ -231,11 +234,8 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
     int expected = ppr_;
     if (delta_ct_.compare_exchange_strong(expected, 0, std::memory_order_acq_rel, std::memory_order_acquire))
     {
-      uint64_t accum = delta_us_accum_.load(std::memory_order_acquire);
-      int ct = delta_us_ct_.load(std::memory_order_acquire);
-
-      delta_us_ct_.store(0, std::memory_order_release);
-      delta_us_accum_.store(0, std::memory_order_release);
+      uint64_t accum = delta_us_accum_.exchange(0, std::memory_order_acquire);
+      int ct =  delta_us_ct_.exchange(0, std::memory_order_release);
 
       if (accum > 0 && ct > 0)
       {
