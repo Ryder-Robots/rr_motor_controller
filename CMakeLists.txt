@@ -17,7 +17,8 @@ find_package(rclcpp_action REQUIRED)
 find_package(pluginlib REQUIRED)
 
 add_library(rr_motor_controller 
-  src/rr_motor_controller.cpp 
+  src/rr_motor_controller.cpp
+  src/dc_linear.cpp
   src/motor.cpp
   src/encoder.cpp)
 add_library(rr_motor_controller::rr_motor_controller ALIAS rr_motor_controller)
