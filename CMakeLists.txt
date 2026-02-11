@@ -92,6 +92,20 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
   target_link_libraries(test_encoder rr_motor_controller)
+
+  # Add DutyConvertorLinearRegression unit tests
+  ament_add_gtest(test_dc_linear test/test_dc_linear.cpp)
+  target_include_directories(test_dc_linear PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+  target_link_libraries(test_dc_linear rr_motor_controller)
+
+  # Add RrMotorController unit tests
+  ament_add_gtest(test_rr_motor_controller test/test_rr_motor_controller.cpp)
+  target_include_directories(test_rr_motor_controller PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+  target_link_libraries(test_rr_motor_controller rr_motor_controller)
 endif()
 
 ament_export_include_directories(
