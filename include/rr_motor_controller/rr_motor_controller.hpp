@@ -31,6 +31,8 @@
 #include "rr_motor_controller/visibility_control.h"
 #include "rr_motor_controller/motor.hpp"
 #include "rr_motor_controller/encoder.hpp"
+#include "rr_motor_controller/dutyconv.hpp"
+#include "rr_motor_controller/dc_linear.hpp"
 #include "rr_common_base/rr_gpio_plugin_iface.hpp"
 #include "rr_interfaces/msg/motor_response.hpp"
 #include "rr_interfaces/msg/motors.hpp"
@@ -62,6 +64,7 @@ protected:
 
   void publish_callback_();
   void subscribe_callback_(const rr_interfaces::msg::Motors & req);
+  void pid_cb_();
 
 private:
   int motor_pos_ = -1;  // position of motor within Motors message that this controller must listen for.
@@ -69,13 +72,17 @@ private:
   double dpp_ {0}; // distance per pulse, how much distance the each pulse moved in mm
   Motor motor_;
   MotorEncoder encoder_;
+  std::shared_ptr<rr_motor_controller::DutyConversion> duty_conv_;
   std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin_;
   EncoderTickCallback tick_cb_{ nullptr };
   int ppr_{ 8 };
 
   // output and diagnostic variables are publsihed to ECU.
   // output variables
-  std::atomic<double> velocity_{ 0 };  // velocity per rotation.
+  std::atomic<double> velocity_{ 0 };         // velocity per rotation, the actual velocity.
+  std::atomic<double> target_velocity_ { 0 }; // what velocity we want is, this is set each time there is a change
+                                              // in velocity from an external source.
+  std::atomic<bool> direction_{ Motor::FORWARD }; // set to FORWARD
 
   // diagnoses variables
   std::atomic<int> total_pulses_{ 0 };
@@ -90,12 +97,14 @@ private:
   std::atomic<int> delta_us_ct_{ 0 };  // count of healthy delta ticks.
   std::atomic<uint64_t> delta_us_accum_{ 0 };  // accumulate deltas
 
+  constexpr static int64_t PID_TIMER_DELTA {100};
   constexpr static double MIN_DELTA_US{ 300 };
   constexpr static double MAX_DELTA_US{ 3000 };
   const std::string CMD_TOPIC = rr_constants::TOPIC_MOTOR;
 
   rclcpp_lifecycle::LifecyclePublisher<rr_interfaces::msg::MotorResponse>::SharedPtr publisher_ {nullptr};
   rclcpp::Subscription<rr_interfaces::msg::Motors>::SharedPtr subscription_ {nullptr};
+  rclcpp::TimerBase::SharedPtr  pid_timer_;
 };
 
 }  // namespace rr_motor_controller

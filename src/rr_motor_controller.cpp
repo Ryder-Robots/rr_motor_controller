@@ -49,7 +49,7 @@ CallbackReturn RrMotorController::on_configure(const State& state)
   }
 
   // compute dpp here, to avoid calculations in callbacks.
-  dpp_ = (2 * M_PI * wheel_radius_) / (ppr_ * 1000.0);
+  dpp_ = (2 * M_PI * wheel_radius_) / ppr_;
 
   // attempt to load the plugin.
   declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
@@ -120,6 +120,16 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   std::string topic = rr_constants::TOPIC_MOTOR + std::to_string(motor_pos_) + "/stats";
   rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
   publisher_ = create_publisher<rr_interfaces::msg::MotorResponse>(topic, rclcpp::SensorDataQoS(), options);
+
+  // create duty convertor, NOTE that this should be selectabel in later versions.
+  // such as using a PID algorithm once proper limits can be found for motors.
+  duty_conv_ = std::make_shared<rr_motor_controller::DutyConvertorLinearRegression>();
+
+  // create wall timer, so that duty conversions can be updated periodically.
+  pid_timer_ = create_wall_timer(
+    std::chrono::milliseconds(PID_TIMER_DELTA),
+    std::bind(&RrMotorController::pid_cb_, this));
+
   running_.store(true, std::memory_order_release);
   return CallbackReturn::SUCCESS;
 }
@@ -145,10 +155,16 @@ void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& re
   //TODO: This was somehow reverted and needs to be fixed!!!!
   if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
   {
-    double duty = 1'000'000.0 / (static_cast<double>(req.motors.at(motor_pos_).velocity) / dpp_);
-    motor_.set_pwm(duty);
+    target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
     motor_.set_direction(req.motors.at(motor_pos_).direction);
   }
+}
+
+// This is expected to be called every so often and compares velocity_ to target_velocity
+// makeing any adjustements.
+void RrMotorController::pid_cb_() {
+  double duty = duty_conv_->compute(target_velocity_, velocity_, PID_TIMER_DELTA);
+  motor_.set_pwm(static_cast<int>(duty));
 }
 
 CallbackReturn RrMotorController::on_deactivate(const State& state)
@@ -204,7 +220,7 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
       if (accum > 0 && ct > 0)
       {
         double avg_us = static_cast<double>(accum) / static_cast<double>(ct);
-        double new_vel = (dpp_ / 1000.0) / avg_us;
+        double new_vel = (dpp_ * 1000.0) / avg_us;
         double current_vel = velocity_.load(std::memory_order_acquire);
 
         // Smooth with EMA (alpha = 0.3)
