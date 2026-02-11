@@ -103,7 +103,6 @@ private:
   int pin_{ -1 };
   int timeout_{ 0 };
   EncoderTickCallback tick_cb_{ nullptr };
-  uint32_t min_interval_us_{ 0 };
 
   int expected_level_ = rrobots::interfaces::RRGPIOInterface::RISING_EDGE;
 };

@@ -30,7 +30,6 @@ namespace rr_motor_controller
 CallbackReturn RrMotorController::on_configure(const State& state)
 {
   RCLCPP_INFO(get_logger(), "Configuring motor controller...");
-
   // Parameters are loaded first — a failure here leaves no hardware state to unwind.
   if (!(get_parameter("motor_pos", motor_pos_) && get_parameter("ppr", ppr_) &&
         get_parameter("wheel_radius", wheel_radius_)))
@@ -44,20 +43,18 @@ CallbackReturn RrMotorController::on_configure(const State& state)
   dpp_ = (2 * M_PI * wheel_radius_) / ppr_;
 
   // attempt to load the plugin.
-  declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
   std::string plugin_param = get_parameter("transport_plugin").as_string();
   RCLCPP_DEBUG(get_logger(), "transport plugin is '%s'", plugin_param.c_str());
 
   try
   {
-    std::unique_ptr<pluginlib::ClassLoader<RRGPIOInterface>> poly_loader_ =
-        std::make_unique<pluginlib::ClassLoader<RRGPIOInterface>>("rr_common_base",
-                                                                  "rrobots::interfaces::"
-                                                                  "RRGPIOInterface");
+    poly_loader_ = std::make_unique<pluginlib::ClassLoader<RRGPIOInterface>>("rr_common_base",
+                                                                             "rrobots::interfaces::"
+                                                                             "RRGPIOInterface");
     gpio_plugin_ = poly_loader_->createUniqueInstance(plugin_param);
     if (gpio_plugin_->initialise() != 0)
     {
-      RCLCPP_ERROR(get_logger(), "could not initlize gpio_plugin!!");
+      RCLCPP_ERROR(get_logger(), "could not initilize gpio_plugin!!");
       return CallbackReturn::FAILURE;
     }
   }
@@ -120,6 +117,11 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   pid_timer_ =
       create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
 
+  sub_timer_ = create_wall_timer(
+    std::chrono::milliseconds(PID_TIMER_DELTA * 2), 
+    std::bind(&RrMotorController::publish_callback_, this)
+  );
+
   running_.store(true, std::memory_order_release);
   return CallbackReturn::SUCCESS;
 }
@@ -147,8 +149,20 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
     RCLCPP_ERROR(get_logger(), "Motor deactivation failed!!");
     rv = CallbackReturn::FAILURE;
   }
+  if (gpio_plugin_->on_deactivate(state) != CallbackReturn::SUCCESS)
+  {
+    RCLCPP_ERROR(get_logger(), "GPIO plugin deactivation failed!!");
+    rv = CallbackReturn::FAILURE;
+  }
 
   return rv;
+}
+
+CallbackReturn  RrMotorController::on_cleanup(const State& state)
+{
+  (void) state;
+  tick_cb_ = nullptr;
+  return CallbackReturn::SUCCESS;
 }
 
 void RrMotorController::publish_callback_()
@@ -169,14 +183,19 @@ void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& re
   if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
   {
     target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
-    motor_.set_direction(req.motors.at(motor_pos_).direction);
+    direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
   }
 }
 
 void RrMotorController::pid_cb_()
 {
-  double duty = duty_conv_->compute(target_velocity_, velocity_, PID_TIMER_DELTA);
-  motor_.set_pwm(static_cast<int>(duty));
+  auto duty = static_cast<int>(duty_conv_->compute(target_velocity_, velocity_, PID_TIMER_DELTA));
+  motor_.set_pwm(duty);
+  // only change direction if it is different, this could create some instability.
+  if (motor_.get_direction() != direction_.load())
+  {
+    motor_.set_direction(direction_.load());
+  }
 }
 
 void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us, const uint32_t tick,

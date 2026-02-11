@@ -68,10 +68,9 @@ public:
    * @param gpio_plugin the GPIO plugin that is used to interact with the hardware, this is used to set up the GPIO pins
    * for the motor, and to set up any interrupts that are required for the motor. Note
    */
-  CallbackReturn configure(
-    const rclcpp_lifecycle::State & previous_state,
-    rclcpp_lifecycle::LifecycleNode::SharedPtr node,
-    std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin);
+  CallbackReturn configure(const rclcpp_lifecycle::State& previous_state,
+                           rclcpp_lifecycle::LifecycleNode::SharedPtr node,
+                           std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin);
 
   /**
    * @fn on_activate
@@ -88,7 +87,7 @@ public:
    * some motors, and it is the responsibility of the implementer to ensure that the motor does not use the node for any
    * other purpose than what is required for activation.
    */
-  CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state);
+  CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state);
 
   /**
    * @fn on_deactivate
@@ -103,7 +102,7 @@ public:
    * deactivation, if it does, then it is the responsibility of the implementer to ensure that the motor does not use
    * the node for any other purpose than what is required for deactivation.
    */
-  CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state);
+  CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state);
 
   /**
    * @fn set_pwm

@@ -36,6 +36,11 @@ CallbackReturn MotorEncoder::configure(const rclcpp_lifecycle::State& previous_s
     int64_t pin{ -1 };
     int64_t timeout{ 0 };
     int64_t min_interval_us{ 0 };
+
+    node->declare_parameter("encoder_pin", 0);
+    node->declare_parameter("encoder_timeout", 0);
+    node->declare_parameter("encoder_min_interval_us", 0);
+
     if (!(node->get_parameter("encoder_pin", pin) && node->get_parameter("encoder_timeout", timeout) &&
           node->get_parameter("encoder_min_interval_us", min_interval_us)))
     {
@@ -44,7 +49,6 @@ CallbackReturn MotorEncoder::configure(const rclcpp_lifecycle::State& previous_s
     }
     pin_ = static_cast<int>(pin);
     timeout_ = static_cast<int>(timeout);
-    min_interval_us_ = static_cast<uint32_t>(min_interval_us);
   }
 
   if (!tick_cb)

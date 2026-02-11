@@ -32,6 +32,12 @@ CallbackReturn Motor::configure(
   (void)previous_state;
   RCLCPP_INFO(rclcpp::get_logger("Motor"), "Configuring motor...");
 
+  node->declare_parameter("pwm_pin", -1);
+  node->declare_parameter("dir_pin", -1);
+
+  // This should be reasonable and probally does not need changing,  but available just in case.
+  node->declare_parameter("pwm_freq", 2000);
+
   if (!(gpio_plugin && node)) {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "missing node or GPIO plugin");
     return CallbackReturn::FAILURE;
