@@ -119,6 +119,16 @@ ros2 topic echo /motors_command0/stats
 - `rr_common_base` (GPIO plugin interface and constants)
 - `rr_interfaces` (Motors and MotorResponse message definitions)
 
+## Roadmap
+
+### ECU Node (Twist to Motors)
+
+Add an ECU (Electronic Control Unit) class that subscribes to `geometry_msgs/msg/Twist` commands from the ROS 2 navigation stack and converts them into `rr_interfaces/msg/Motors` command messages for 1 to N motor controllers. The ECU will decompose linear and angular velocity into per-motor target velocities using a differential drive model. Angular velocity is strictly subtractive: turning is achieved by reducing velocity on motors on the inside of the turn, never by increasing velocity on the opposite side. This ensures the vehicle's maximum speed is bounded by the linear velocity command alone.
+
+### PID Duty Conversion
+
+Replace the current linear regression duty convertor with a closed-loop PID algorithm implementing the `DutyConversion` interface. The PID controller will use encoder feedback (measured velocity) and the target velocity to compute duty cycle adjustments each control period. Kp, Ki, and Kd coefficients will be exposed as ROS 2 parameters per motor, allowing runtime tuning to align individual motors to consistent velocity targets and compensate for per-motor mechanical variation.
+
 ## License
 
 MIT License - Copyright (c) 2026 Ryder Robots
