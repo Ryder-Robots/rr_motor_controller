@@ -20,9 +20,9 @@ Lifecycle-managed ROS 2 node that drives a single DC motor and encoder pair. Eac
 
 ## Parameters
 
-### Controller Parameters
+All parameters are declared in the `RrMotorController` constructor.
 
-Declared in the `RrMotorController` constructor.
+### Controller Parameters
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -33,8 +33,6 @@ Declared in the `RrMotorController` constructor.
 
 ### Motor Parameters
 
-Declared during motor configuration.
-
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `pwm_pin` | int | `-1` | GPIO pin used for hardware PWM output |
@@ -43,13 +41,10 @@ Declared during motor configuration.
 
 ### Encoder Parameters
 
-Declared during encoder configuration.
-
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `encoder_pin` | int | `0` | GPIO pin connected to the encoder (hall sensor) output |
 | `encoder_timeout` | int | `0` | Interrupt timeout in microseconds; 0 disables timeout callbacks |
-| `encoder_min_interval_us` | int | `0` | Minimum interval between valid pulses in microseconds |
 
 ## Topics
 
@@ -83,7 +78,6 @@ def generate_launch_description():
                 'pwm_freq': 1000,
                 'encoder_pin': 17,
                 'encoder_timeout': 500000,
-                'encoder_min_interval_us': 200,
             }],
         ),
     ])

@@ -54,7 +54,7 @@ CallbackReturn RrMotorController::on_configure(const State& state)
     gpio_plugin_ = poly_loader_->createUniqueInstance(plugin_param);
     if (gpio_plugin_->initialise() != 0)
     {
-      RCLCPP_ERROR(get_logger(), "could not initilize gpio_plugin!!");
+      RCLCPP_ERROR(get_logger(), "could not initialize gpio_plugin!!");
       return CallbackReturn::FAILURE;
     }
   }
@@ -130,11 +130,9 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
 {
   // Stop encoder processing first, then tear down ROS interfaces.
   running_.store(false, std::memory_order_release);
-  pid_timer_ = nullptr;
-  duty_conv_ = nullptr;
-  publisher_ = nullptr;
-  subscription_ = nullptr;
-
+  duty_conv_.reset();
+  publisher_.reset();
+  subscription_.reset();
   sub_timer_.reset();
   pid_timer_.reset();
 
@@ -234,8 +232,8 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
     int expected = ppr_;
     if (delta_ct_.compare_exchange_strong(expected, 0, std::memory_order_acq_rel, std::memory_order_acquire))
     {
-      uint64_t accum = delta_us_accum_.exchange(0, std::memory_order_acquire);
-      int ct =  delta_us_ct_.exchange(0, std::memory_order_release);
+      uint64_t accum = delta_us_accum_.exchange(0, std::memory_order_acq_rel);
+      int ct =  delta_us_ct_.exchange(0, std::memory_order_acq_rel);
 
       if (accum > 0 && ct > 0)
       {

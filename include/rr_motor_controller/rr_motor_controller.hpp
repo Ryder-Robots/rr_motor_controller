@@ -61,6 +61,17 @@ public:
     declare_parameter("ppr", 8);
     declare_parameter("wheel_radius", 20);
     declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
+
+    // encoder parameters
+    declare_parameter("encoder_pin", 0);
+    declare_parameter("encoder_timeout", 0);
+
+    // motor parameters
+    declare_parameter("pwm_pin", -1);
+    declare_parameter("dir_pin", -1);
+
+    // This should be reasonable and probally does not need changing,  but available just in case.
+    declare_parameter("pwm_freq", 2000);
   }
 
   virtual ~RrMotorController() = default;
