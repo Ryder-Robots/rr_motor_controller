@@ -66,12 +66,12 @@ CallbackReturn Motor::on_activate(const rclcpp_lifecycle::State & previous_state
   (void)previous_state;
   RCLCPP_INFO(rclcpp::get_logger("Motor"), "Activating motor...");
 
-  if (gpio_plugin_->set_pin_mode(dir_pin_, rrobots::interfaces::RRGPIOInterface::PI_OUTPUT) != OK) {
+  if (gpio_plugin_->set_pin_mode(dir_pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_OUTPUT) != OK) {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to set direction pin mode");
     return CallbackReturn::FAILURE;
   }
 
-  if (gpio_plugin_->set_pin_mode(pwm_pin_, rrobots::interfaces::RRGPIOInterface::PI_ALT5) != OK) {
+  if (gpio_plugin_->set_pin_mode(pwm_pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_ALT5) != OK) {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to set pwm pin mode");
     return CallbackReturn::FAILURE;
   }

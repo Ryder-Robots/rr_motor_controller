@@ -43,8 +43,8 @@ namespace rr_motor_controller
 class Motor
 {
 public:
-  constexpr static int BACKWARD = rrobots::interfaces::RRGPIOInterface::PI_LOW;
-  constexpr static int FORWARD = rrobots::interfaces::RRGPIOInterface::PI_HIGH;
+  constexpr static int BACKWARD = rrobots::interfaces::RRGPIOInterface::RRGPIO_LOW;
+  constexpr static int FORWARD = rrobots::interfaces::RRGPIOInterface::RRGPIO_HIGH;
 
   // Duty cycles are a range that are usually offset, thus 50% would be 500,000 the offset corrects for that.
   constexpr static int DUTY_OFFSET = 10000;

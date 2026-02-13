@@ -193,11 +193,11 @@ TEST_F(EncoderTest, OnActivateSuccess) {
 
   // Verify GPIO was configured correctly
   EXPECT_EQ(mock_gpio_->last_set_pin_mode_pin, 4);
-  EXPECT_EQ(mock_gpio_->last_set_pin_mode_mode, rrobots::interfaces::RRGPIOInterface::PI_INPUT);
+  EXPECT_EQ(mock_gpio_->last_set_pin_mode_mode, rrobots::interfaces::RRGPIOInterface::RRGPIO_INPUT);
   EXPECT_EQ(mock_gpio_->last_set_pud_pin, 4);
-  EXPECT_EQ(mock_gpio_->last_set_pud_value, rrobots::interfaces::RRGPIOInterface::PI_PUD_DOWN);
+  EXPECT_EQ(mock_gpio_->last_set_pud_value, rrobots::interfaces::RRGPIOInterface::RRGPIO_PUD_DOWN);
   EXPECT_EQ(mock_gpio_->last_isr_gpio, 4);
-  EXPECT_EQ(mock_gpio_->last_isr_edge, static_cast<int>(rrobots::interfaces::RRGPIOInterface::RISING_EDGE));
+  EXPECT_EQ(mock_gpio_->last_isr_edge, static_cast<int>(rrobots::interfaces::RRGPIOInterface::RRGPIO_RISING_EDGE));
   EXPECT_EQ(mock_gpio_->last_isr_timeout, 500);
   EXPECT_NE(mock_gpio_->captured_isr_func, nullptr);
 }

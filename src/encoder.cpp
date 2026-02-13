@@ -71,19 +71,19 @@ CallbackReturn MotorEncoder::on_activate(const rclcpp_lifecycle::State& previous
     return CallbackReturn::FAILURE;
   }
 
-  if (gpio_plugin_->set_pin_mode(pin_, rrobots::interfaces::RRGPIOInterface::PI_INPUT) != 0)
+  if (gpio_plugin_->set_pin_mode(pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_INPUT) != 0)
   {
     RCLCPP_ERROR(rclcpp::get_logger("MotorEncoder"), "could not set pin %d to input...", pin_);
     return CallbackReturn::FAILURE;
   }
 
-  if (gpio_plugin_->set_pull_up_down(pin_, rrobots::interfaces::RRGPIOInterface::PI_PUD_DOWN) != 0)
+  if (gpio_plugin_->set_pull_up_down(pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_PUD_DOWN) != 0)
   {
     RCLCPP_ERROR(rclcpp::get_logger("MotorEncoder"), "could not pull pin %d to PUD_DOWN...", pin_);
     return CallbackReturn::FAILURE;
   }
   last_tick_ = gpio_plugin_->tick();
-  if (gpio_plugin_->set_isr_func_ex(pin_, rrobots::interfaces::RRGPIOInterface::RISING_EDGE, timeout_,
+  if (gpio_plugin_->set_isr_func_ex(pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_RISING_EDGE, timeout_,
                                     &MotorEncoder::gpio_isr_func, this) != 0)
   {
     RCLCPP_ERROR(rclcpp::get_logger("MotorEncoder"), "could not attach ISR callback to pin %d...", pin_);
@@ -101,12 +101,12 @@ CallbackReturn MotorEncoder::on_deactivate(const rclcpp_lifecycle::State& previo
     RCLCPP_WARN(rclcpp::get_logger("MotorEncoder"), "unable to clear pin %d ISR callback function...", pin_);
     rv = CallbackReturn::FAILURE;
   }
-  if (gpio_plugin_->set_pull_up_down(pin_, rrobots::interfaces::RRGPIOInterface::PI_PUD_OFF) != 0)
+  if (gpio_plugin_->set_pull_up_down(pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_PUD_OFF) != 0)
   {
     RCLCPP_WARN(rclcpp::get_logger("MotorEncoder"), "could not pull pin %d to PUD_OFF...", pin_);
     rv = CallbackReturn::FAILURE;
   }
-  if (gpio_plugin_->set_pin_mode(pin_, rrobots::interfaces::RRGPIOInterface::PI_INPUT))
+  if (gpio_plugin_->set_pin_mode(pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_INPUT))
   {
     RCLCPP_WARN(rclcpp::get_logger("MotorEncoder"), "could not set the pin %d back to INPUT...", pin_);
     rv = CallbackReturn::FAILURE;

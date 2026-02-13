@@ -104,6 +104,6 @@ private:
   int timeout_{ 0 };
   EncoderTickCallback tick_cb_{ nullptr };
 
-  int expected_level_ = rrobots::interfaces::RRGPIOInterface::RISING_EDGE;
+  int expected_level_ = rrobots::interfaces::RRGPIOInterface::RRGPIO_RISING_EDGE;
 };
 }  // namespace rr_motor_controller
