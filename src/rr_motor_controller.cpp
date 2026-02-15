@@ -52,7 +52,7 @@ CallbackReturn RrMotorController::on_configure(const State& state)
                                                                              "rrobots::interfaces::"
                                                                              "RRGPIOInterface");
     gpio_plugin_ = poly_loader_->createUniqueInstance(plugin_param);
-    if (gpio_plugin_->initialise() != 0)
+    if (gpio_plugin_->configure(state, this->shared_from_this()) != CallbackReturn::SUCCESS)
     {
       RCLCPP_ERROR(get_logger(), "could not initialize gpio_plugin!!");
       return CallbackReturn::FAILURE;
@@ -88,16 +88,26 @@ CallbackReturn RrMotorController::on_configure(const State& state)
 
 CallbackReturn RrMotorController::on_activate(const State& state)
 {
-  // Activate hardware first — if encoder fails, roll back motor.
+  // Activate plugin, this will create a hardware instance of the GPIO layer
+  if (gpio_plugin_ == nullptr || gpio_plugin_->on_activate(state) != CallbackReturn::SUCCESS)
+  {
+    RCLCPP_ERROR(get_logger(), "Activation of gpio_plugin failed!!");
+    return CallbackReturn::FAILURE;
+  }
+
+  // Activate first — if encoder fails, roll back motor.
   if (motor_.on_activate(state) != CallbackReturn::SUCCESS)
   {
     RCLCPP_ERROR(get_logger(), "Motor activation failed!!");
+
+    gpio_plugin_->on_deactivate(state);
     return CallbackReturn::FAILURE;
   }
 
   if (encoder_.on_activate(state) != CallbackReturn::SUCCESS)
   {
     motor_.on_deactivate(state);
+    gpio_plugin_->on_deactivate(state);
     RCLCPP_ERROR(get_logger(), "Encoder activation failed!!");
     return CallbackReturn::FAILURE;
   }
@@ -117,10 +127,8 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   pid_timer_ =
       create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
 
-  sub_timer_ = create_wall_timer(
-    std::chrono::milliseconds(PID_TIMER_DELTA * 2), 
-    std::bind(&RrMotorController::publish_callback_, this)
-  );
+  sub_timer_ = create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA * 2),
+                                 std::bind(&RrMotorController::publish_callback_, this));
 
   running_.store(true, std::memory_order_release);
   return CallbackReturn::SUCCESS;
@@ -159,9 +167,9 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
   return rv;
 }
 
-CallbackReturn  RrMotorController::on_cleanup(const State& state)
+CallbackReturn RrMotorController::on_cleanup(const State& state)
 {
-  (void) state;
+  (void)state;
   tick_cb_ = nullptr;
   return CallbackReturn::SUCCESS;
 }
@@ -233,7 +241,7 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
     if (delta_ct_.compare_exchange_strong(expected, 0, std::memory_order_acq_rel, std::memory_order_acquire))
     {
       uint64_t accum = delta_us_accum_.exchange(0, std::memory_order_acq_rel);
-      int ct =  delta_us_ct_.exchange(0, std::memory_order_acq_rel);
+      int ct = delta_us_ct_.exchange(0, std::memory_order_acq_rel);
 
       if (accum > 0 && ct > 0)
       {

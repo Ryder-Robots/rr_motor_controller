@@ -5,8 +5,8 @@ import argparse
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
-from rr_interfaces.msg import Motors, Motor
+from rclpy.qos import QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
+from rr_interfaces.msg import Motor, Motors
 
 
 def main():
