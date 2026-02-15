@@ -101,7 +101,7 @@ endif()
 
 
 rclcpp_components_register_nodes(rr_motor_controller
-  "rr_motor_controller::RrMotorControllerNode"
+  "rr_motor_controller::RrMotorController"
 )
 
 ament_export_include_directories(
