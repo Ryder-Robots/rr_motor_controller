@@ -51,7 +51,7 @@ using TickStatus = rr_motor_controller::TickStatus;
 class RrMotorControllerTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    ctrl_ = std::make_shared<rr_motor_controller::RrMotorController>();
+    ctrl_ = std::make_shared<rr_motor_controller::RrMotorController>(rclcpp::NodeOptions());
   }
 
   // Helper: put the controller into a testable state with known config

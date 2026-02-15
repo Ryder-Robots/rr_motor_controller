@@ -43,6 +43,7 @@
 #include "rr_interfaces/msg/motor_response.hpp"
 #include "rr_interfaces/msg/motors.hpp"
 #include "rr_common_base/rr_constants.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 
 namespace rr_motor_controller
 {
@@ -54,7 +55,7 @@ class RrMotorController : public rclcpp_lifecycle::LifecycleNode
   using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 
 public:
-  RrMotorController() : rclcpp_lifecycle::LifecycleNode("MotorController")
+  explicit RrMotorController(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("MotorController", options)
   {
     // set up paramters.
     declare_parameter("motor_pos", 0);

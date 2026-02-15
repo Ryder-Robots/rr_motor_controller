@@ -252,3 +252,4 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
 }
 
 }  // namespace rr_motor_controller
+RCLCPP_COMPONENTS_REGISTER_NODE(rr_motor_controller::RrMotorController)

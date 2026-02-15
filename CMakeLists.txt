@@ -53,15 +53,6 @@ install(
   RUNTIME DESTINATION bin
 )
 
-add_executable(rr_motor_controller_node src/rr_motor_controller_node.cpp)
-target_include_directories(rr_motor_controller_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_link_libraries(rr_motor_controller_node rr_motor_controller)
-
-install(TARGETS rr_motor_controller_node
-  DESTINATION lib/${PROJECT_NAME})
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
@@ -107,6 +98,11 @@ if(BUILD_TESTING)
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
   target_link_libraries(test_rr_motor_controller rr_motor_controller)
 endif()
+
+
+rclcpp_components_register_nodes(rr_motor_controller
+  "rr_motor_controller::RrMotorControllerNode"
+)
 
 ament_export_include_directories(
   "include/${PROJECT_NAME}"
