@@ -117,10 +117,41 @@ ros2 lifecycle set /motor_left cleanup
 ros2 lifecycle get /motor_left
 ```
 
-### Monitoring output
+### Sending motor commands via Python script
+
+A helper script is provided in `scripts/send_motors_command.py` to publish a `Motors` message targeting motor index 0.
 
 ```bash
-# Watch velocity and diagnostics
+# Send a forward command at velocity 50
+python3 scripts/send_motors_command.py --direction forward --velocity 50
+
+# Send a reverse command at velocity 30
+python3 scripts/send_motors_command.py --direction reverse --velocity 30
+
+# Defaults to forward direction with velocity 0 (stopped)
+python3 scripts/send_motors_command.py
+```
+
+| Argument | Values | Default | Description |
+|---|---|---|---|
+| `--direction` | `forward`, `reverse` | `forward` | Motor direction |
+| `--velocity` | integer | `0` | PWM duty cycle value |
+
+The script waits for a subscriber to be discovered before publishing.
+
+### Monitoring output
+
+The motor controller publishes feedback on `/motors_command<N>/stats` (where `<N>` is the `motor_pos` parameter). The response message (`rr_interfaces/msg/MotorResponse`) contains:
+
+| Field | Type | Description |
+|---|---|---|
+| `velocity` | float64 | Average pulses per second |
+| `total_pulses` | int32 | Total pulse count since motor started |
+| `healthy_pulses` | int32 | Pulses within the expected range |
+| `boundary_triggers` | int32 | Pulses at the edge of a rotation |
+
+```bash
+# Watch velocity and diagnostics for motor 0
 ros2 topic echo /motors_command0/stats
 ```
 
