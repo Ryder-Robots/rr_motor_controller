@@ -54,7 +54,7 @@ CallbackReturn RrMotorController::on_configure(const State& state)
     gpio_plugin_ = poly_loader_->createUniqueInstance(plugin_param);
     if (gpio_plugin_->configure(state, this->shared_from_this()) != CallbackReturn::SUCCESS)
     {
-      RCLCPP_ERROR(get_logger(), "could not initialize gpio_plugin!!");
+      RCLCPP_ERROR(get_logger(), "could not configure gpio_plugin!!");
       return CallbackReturn::FAILURE;
     }
   }
