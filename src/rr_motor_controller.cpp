@@ -83,6 +83,11 @@ CallbackReturn RrMotorController::on_configure(const State& state)
     return CallbackReturn::FAILURE;
   }
 
+  // create publisher.
+  std::string topic = rr_constants::TOPIC_MOTOR + std::to_string(motor_pos_) + "/stats";
+  rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
+  publisher_ = create_publisher<rr_interfaces::msg::MotorResponse>(topic, rclcpp::SensorDataQoS(), options);
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -116,9 +121,6 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   subscription_ = create_subscription<rr_interfaces::msg::Motors>(
       rr_constants::TOPIC_MOTOR, rclcpp::SensorDataQoS(),
       std::bind(&RrMotorController::subscribe_callback_, this, std::placeholders::_1));
-  std::string topic = rr_constants::TOPIC_MOTOR + std::to_string(motor_pos_) + "/stats";
-  rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
-  publisher_ = create_publisher<rr_interfaces::msg::MotorResponse>(topic, rclcpp::SensorDataQoS(), options);
 
   // Duty convertor strategy — currently linear regression, swappable to PID.
   duty_conv_ = std::make_shared<rr_motor_controller::DutyConvertorLinearRegression>();
@@ -127,6 +129,7 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   pid_timer_ =
       create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
 
+  publisher_->on_activate();
   sub_timer_ = create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA * 2),
                                  std::bind(&RrMotorController::publish_callback_, this));
 
@@ -143,6 +146,7 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
   subscription_.reset();
   sub_timer_.reset();
   pid_timer_.reset();
+  publisher_->on_deactivate();
 
   // Deactivate hardware — continue through failures to ensure both are attempted.
   CallbackReturn rv = CallbackReturn::SUCCESS;
