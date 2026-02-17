@@ -181,7 +181,7 @@ CallbackReturn RrMotorController::on_cleanup(const State& state)
 
 void RrMotorController::publish_callback_()
 {
-  RCLCPP_DEBUG(get_logger(), "publish callback is getting called!");
+  // RCLCPP_DEBUG(get_logger(), "publish callback is getting called!");
 
   if (running_.load(std::memory_order_acquire))
   {
@@ -203,11 +203,15 @@ void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& re
 
   if (running_.load(std::memory_order_acquire))
   {
-    if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
-    {
-      target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
-      direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
-    }
+    return;
+  }
+
+  RCLCPP_DEBUG(get_logger(), "seeing if motor needs to be updated");
+  if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
+  {
+    RCLCPP_DEBUG(get_logger(), "attempting to update the motor");
+    target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
+    direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
   }
 }
 
