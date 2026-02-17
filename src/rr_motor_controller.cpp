@@ -201,7 +201,7 @@ void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& re
 {
   RCLCPP_DEBUG(get_logger(), "subscriber callback is getting called!");
 
-  if (running_.load(std::memory_order_acquire))
+  if (!running_.load(std::memory_order_acquire))
   {
     return;
   }
