@@ -14,7 +14,7 @@ def main():
     parser.add_argument('--direction', type=str, default='forward',
                         choices=['forward', 'reverse'],
                         help='Motor direction (default: forward)')
-    parser.add_argument('--velocity', type=int, default=0,
+    parser.add_argument('--velocity', type=float, default=0,
                         help='PWM duty cycle value (default: 0)')
     args = parser.parse_args()
 
