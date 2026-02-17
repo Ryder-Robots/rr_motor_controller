@@ -139,14 +139,15 @@ CallbackReturn RrMotorController::on_activate(const State& state)
 
 CallbackReturn RrMotorController::on_deactivate(const State& state)
 {
-  // Stop encoder processing first, then tear down ROS interfaces.
+  // Signal all callbacks to stop, then cancel timers before destroying
+  // the resources they reference.
   running_.store(false, std::memory_order_release);
-  duty_conv_.reset();
-  publisher_.reset();
-  subscription_.reset();
-  sub_timer_.reset();
   pid_timer_.reset();
+  sub_timer_.reset();
+  subscription_.reset();
   publisher_->on_deactivate();
+  publisher_.reset();
+  duty_conv_.reset();
 
   // Deactivate hardware — continue through failures to ensure both are attempted.
   CallbackReturn rv = CallbackReturn::SUCCESS;
@@ -180,28 +181,43 @@ CallbackReturn RrMotorController::on_cleanup(const State& state)
 
 void RrMotorController::publish_callback_()
 {
-  // Do not log, this could significantly slow processing.
-  rr_interfaces::msg::MotorResponse response;
-  response.header.stamp = now();
-  response.header.frame_id = rr_constants::LINK_MOTOR;
-  response.velocity = velocity_.load();
-  response.total_pulses = total_pulses_.load();
-  response.healthy_pulses = healthy_pulses_.load();
-  response.boundary_triggers = boundary_triggers_.load();
-  publisher_->publish(response);
+  RCLCPP_DEBUG(get_logger(), "publish callback is getting called!");
+
+  if (running_.load(std::memory_order_acquire))
+  {
+    // Do not log, this could significantly slow processing.
+    rr_interfaces::msg::MotorResponse response;
+    response.header.stamp = now();
+    response.header.frame_id = rr_constants::LINK_MOTOR;
+    response.velocity = velocity_.load();
+    response.total_pulses = total_pulses_.load();
+    response.healthy_pulses = healthy_pulses_.load();
+    response.boundary_triggers = boundary_triggers_.load();
+    publisher_->publish(response);
+  }
 }
 
 void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& req)
 {
-  if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
+  RCLCPP_DEBUG(get_logger(), "subscriber callback is getting called!");
+
+  if (running_.load(std::memory_order_acquire))
   {
-    target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
-    direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
+    if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
+    {
+      target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
+      direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
+    }
   }
 }
 
 void RrMotorController::pid_cb_()
 {
+  if (!running_.load(std::memory_order_acquire))
+  {
+    return;
+  }
+
   auto duty = static_cast<int>(duty_conv_->compute(target_velocity_, velocity_, PID_TIMER_DELTA));
   motor_.set_pwm(duty);
   // only change direction if it is different, this could create some instability.
