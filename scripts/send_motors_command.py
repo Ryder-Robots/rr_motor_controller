@@ -43,7 +43,11 @@ def main():
     while publisher.get_subscription_count() == 0:
         rclpy.spin_once(node, timeout_sec=0.5)
 
-    publisher.publish(msg)
+    # Publish a few times to ensure delivery over BEST_EFFORT QoS.
+    for _ in range(3):
+        publisher.publish(msg)
+        rclpy.spin_once(node, timeout_sec=0.1)
+
     node.get_logger().info(
         f'Published Motors message: direction={args.direction}, velocity={args.velocity}'
     )
