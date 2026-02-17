@@ -96,12 +96,12 @@ int Motor::set_direction(int dir)
 
 int Motor::set_pwm(int duty)
 {
-  return gpio_plugin_->gpio_hardware_pwm(pwm_pin_, freq_, duty + DUTY_OFFSET);
+  return gpio_plugin_->gpio_hardware_pwm(pwm_pin_, freq_, duty * DUTY_OFFSET);
 }
 
 int Motor::get_pwm() const noexcept
 {
-  return gpio_plugin_->gpio_hardware_get_pwm(pwm_pin_) - DUTY_OFFSET;
+  return gpio_plugin_->gpio_hardware_get_pwm(pwm_pin_) / DUTY_OFFSET;
 }
 
 int Motor::get_direction() const noexcept
