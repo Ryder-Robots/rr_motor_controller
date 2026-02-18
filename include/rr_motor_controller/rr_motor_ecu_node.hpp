@@ -24,6 +24,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <geometry_msgs/msg/twist.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include "rr_common_base/rr_gpio_plugin_iface.hpp"
 #include "rr_motor_controller/rr_motor_controller.hpp"
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
@@ -92,6 +93,7 @@ protected:
    * enqueues them into command_queue_ for processing.
    */
   void subscribe_callback_(const geometry_msgs::msg::Twist& req);
+  void publish_callback_();
 
 private:
   // Motor controllers, one per physical motor. Indexed by motor position.
@@ -104,7 +106,7 @@ private:
   std::unique_ptr<pluginlib::ClassLoader<RRGPIOInterface>> poly_loader_{ nullptr };  ///< GPIO plugin loader.
   std::shared_ptr<RRGPIOInterface> gpio_plugin_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_{ nullptr };  ///< Twist command input.
-  rclcpp_lifecycle::LifecyclePublisher<rr_interfaces::msg::MotorResponse>::SharedPtr publisher_{ nullptr };  ///< Aggregated motor status output.
+  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Odometry>::SharedPtr publisher_{ nullptr };  ///< Aggregated motor status output.
 };
 
 }  // namespace rr_motor_controller
