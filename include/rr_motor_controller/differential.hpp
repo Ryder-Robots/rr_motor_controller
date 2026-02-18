@@ -21,19 +21,23 @@
 #pragma once
 #include "rr_motor_controller/motorcmdproc.hpp"
 #include <vector>
+#include <array>
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
-#include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf2/convert.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 /**
  * @file differential.hpp
  * @brief Command processor for two-motor differential (skid-steer) robots.
  */
-namespace rr_motor_controller {
+namespace rr_motor_controller
+{
 
 /**
- * @class DifferentalCmdProc
+ * @class DifferentialCmdProc
  * @brief Converts Twist commands to per-motor commands for a differential drive.
  *
  * Processes @c geometry_msgs::msg::Twist messages whose fields are:
@@ -48,38 +52,63 @@ namespace rr_motor_controller {
  *  - Index 0: left motor
  *  - Index 1: right motor
  */
-    class DifferentalCmdProc : public MotorCmdProc {
-        public:
+class DifferentialCmdProc : public MotorCmdProc
+{
+public:
+  DifferentialCmdProc() = default;
+  ~DifferentialCmdProc() = default;
 
-        DifferentalCmdProc() = default;
-        ~DifferentalCmdProc() = default;
+  void on_configure(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) override;
 
-        void on_configure(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) override;
+  /** @copydoc MotorCmdProc::proc_twist */
+  std::vector<MotorCommand> proc_twist(geometry_msgs::msg::Twist msg) override;
 
-        /** @copydoc MotorCmdProc::proc_twist */
-        std::vector<MotorCommand> proc_twist(geometry_msgs::msg::Twist  msg) override;
+  /** @copydoc MotorCmdProc::proc_odom */
+  nav_msgs::msg::Odometry proc_odom(const std::vector<MotorCommand>) override;
 
-        /** @copydoc MotorCmdProc::proc_odom */
-        nav_msgs::msg::Odometry proc_odom(const std::vector<MotorCommand>) override;
+  void update() override;
 
-        static constexpr int DD_LEFT = 0;
-        static constexpr int DD_RIGHT = 1;
+  static constexpr int DD_LEFT = 0;
+  static constexpr int DD_RIGHT = 1;
 
-        protected:
-        /**
-         * @brief Build a MotorCommand from a signed velocity.
-         *
-         * Decomposes the signed value into an absolute speed and a direction
-         * flag, and stamps the command with the current time plus ttl_ns_.
-         *
-         * @param velocity Signed velocity in m/s (negative = backward).
-         * @return MotorCommand with magnitude, direction, and expiry set.
-         */
-        MotorCommand make_cmd(double velocity);
+protected:
+  /**
+   * @brief Build a MotorCommand from a signed velocity.
+   *
+   * Decomposes the signed value into an absolute speed and a direction
+   * flag, and stamps the command with the current time plus ttl_ns_.
+   *
+   * @param velocity Signed velocity in m/s (negative = backward).
+   * @return MotorCommand with magnitude, direction, and expiry set.
+   */
+  MotorCommand make_cmd(double velocity);
 
-        private:
-        uint64_t ttl_ns_ = 0;
-        double wheel_base_ = 0;
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_ {nullptr};
-    };
-}
+  static double compute_distance(const std::vector<rr_motor_controller::MotorCommand>& history, uint64_t now_ns);
+
+  void prune_history(uint64_t now_ns);
+
+private:
+  uint64_t ttl_ns_ = 0;
+  double wheel_base_ = 0;
+
+  std::vector<std::vector<rr_motor_controller::MotorCommand>> command_history_;
+
+  // Postulate state
+  double x_, y_, theta_;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_{ nullptr };
+
+  double last_update_ns_ = 0, d_centre = 0, d_theta = 0, dt_ = 0.0;
+
+  double v_linear_ = 0.0;
+  double v_angular_ = 0.0;
+
+  // allow for 6*6 degrees of freedom x,y,z,roll, pitch, and yaw
+  // example
+  // odom.pose.covariance[0] = 0.01;   // x
+  // odom.pose.covariance[7] = 0.01;   // y
+  // odom.pose.covariance[35] = 0.05;  // yaw
+  std::array<double, 36> covariance_{};
+
+  std::array<double, 2> integrated_distance_ = {0.0, 0.0};
+};
+}  // namespace rr_motor_controller

@@ -23,7 +23,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
 #include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include "nav_msgs/msg/odometry.hpp"
 
 /**
  * @file motorcmdproc.hpp
@@ -55,6 +55,8 @@ namespace rr_motor_controller {
          * @return Vector of MotorCommand, one per driven motor.
          */
         virtual std::vector<MotorCommand> proc_twist(geometry_msgs::msg::Twist  msg) = 0;
+
+        virtual void update() = 0;
 
         /**
          * @brief Compute odometry from motor command feedback.
