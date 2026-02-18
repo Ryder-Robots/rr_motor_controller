@@ -58,6 +58,19 @@ public:
   DifferentialCmdProc() = default;
   ~DifferentialCmdProc() = default;
 
+  /**
+   * @brief Initialise parameters from the lifecycle node.
+   *
+   * Reads the following ROS parameters:
+   *  - @b wheel_base  (double) Distance in metres between the left and right wheels.
+   *  - @b ttl_ns      (uint64_t) Time-to-live for each MotorCommand in nanoseconds.
+   *                   Commands older than this are considered stale.
+   *  - @b covariance  (double[]) Optional flat 36-element array that populates
+   *                   the pose covariance matrix (6x6, row-major, order:
+   *                   x, y, z, roll, pitch, yaw).  Defaults to all zeros.
+   *
+   * @param node Shared pointer to the owning lifecycle node.
+   */
   void on_configure(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) override;
 
   /** @copydoc MotorCmdProc::proc_twist */
@@ -66,9 +79,23 @@ public:
   /** @copydoc MotorCmdProc::proc_odom */
   nav_msgs::msg::Odometry proc_odom(const std::vector<MotorCommand>) override;
 
+  /**
+   * @brief Integrate wheel motion and update the dead-reckoned pose.
+   *
+   * Must be called periodically (e.g. from a timer callback).  On each call it:
+   *  1. Computes the distance each wheel has travelled since the last update
+   *     by integrating @c command_history_ up to the current time.
+   *  2. Applies differential-drive kinematics to advance @c x_, @c y_, and
+   *     @c theta_.
+   *  3. Stores the instantaneous linear and angular velocities for the next
+   *     @c proc_odom call.
+   *  4. Prunes expired commands from @c command_history_.
+   */
   void update() override;
 
+  /** Index of the left motor within command_history_ and integrated_distance_. */
   static constexpr int DD_LEFT = 0;
+  /** Index of the right motor within command_history_ and integrated_distance_. */
   static constexpr int DD_RIGHT = 1;
 
 protected:
@@ -83,32 +110,85 @@ protected:
    */
   MotorCommand make_cmd(double velocity);
 
+  /**
+   * @brief Integrate a command history to compute total distance travelled.
+   *
+   * Treats each consecutive pair of commands as a constant-velocity segment
+   * and sums (velocity × duration) across all segments up to @p now_ns.
+   * The last command in the history is assumed to remain active until
+   * @p now_ns.
+   *
+   * @param history Ordered list of MotorCommands for one wheel.
+   * @param now_ns  Current time in nanoseconds (RCL_STEADY_TIME).
+   * @return Signed distance in metres (negative = backward).
+   */
   static double compute_distance(const std::vector<rr_motor_controller::MotorCommand>& history, uint64_t now_ns);
 
+  /**
+   * @brief Remove commands from history that are no longer needed.
+   *
+   * Keeps at least the most-recent active command so that @c compute_distance
+   * always has a valid baseline.  Called at the end of every @c update().
+   *
+   * @param now_ns Current time in nanoseconds (RCL_STEADY_TIME).
+   */
   void prune_history(uint64_t now_ns);
 
 private:
+  /** Time-to-live applied to each issued MotorCommand (nanoseconds). */
   uint64_t ttl_ns_ = 0;
+
+  /** Distance between left and right wheel contact patches (metres). */
   double wheel_base_ = 0;
 
+  /**
+   * @brief Per-wheel command history used by compute_distance().
+   *
+   * Indexed by DD_LEFT and DD_RIGHT.  Each inner vector is ordered
+   * chronologically and pruned by prune_history() after every update.
+   */
   std::vector<std::vector<rr_motor_controller::MotorCommand>> command_history_;
 
-  // Postulate state
-  double x_, y_, theta_;
+  /** Dead-reckoned x position in the odom frame (metres). */
+  double x_ = 0.0;
+  /** Dead-reckoned y position in the odom frame (metres). */
+  double y_ = 0.0;
+  /** Dead-reckoned heading angle from the odom frame x-axis (radians). */
+  double theta_ = 0.0;
+
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_{ nullptr };
 
-  double last_update_ns_ = 0, d_centre = 0, d_theta = 0, dt_ = 0.0;
+  /** Timestamp of the previous update() call (nanoseconds, RCL_STEADY_TIME). */
+  double last_update_ns_ = 0;
+  /** Incremental centre-point displacement computed in the last update() (metres). */
+  double d_centre = 0;
+  /** Incremental heading change computed in the last update() (radians). */
+  double d_theta = 0;
+  /** Duration of the last update cycle (seconds). */
+  double dt_ = 0.0;
 
+  /** Instantaneous linear velocity of the robot centre (m/s), updated by update(). */
   double v_linear_ = 0.0;
+  /** Instantaneous angular velocity about the z-axis (rad/s), updated by update(). */
   double v_angular_ = 0.0;
 
-  // allow for 6*6 degrees of freedom x,y,z,roll, pitch, and yaw
-  // example
-  // odom.pose.covariance[0] = 0.01;   // x
-  // odom.pose.covariance[7] = 0.01;   // y
-  // odom.pose.covariance[35] = 0.05;  // yaw
+  /**
+   * @brief Pose covariance matrix stored as a flat 36-element row-major array.
+   *
+   * Represents a 6x6 symmetric matrix over the state vector [x, y, z, roll, pitch, yaw].
+   * Diagonal elements (variances) are at indices: 0=x, 7=y, 14=z, 21=roll, 28=pitch, 35=yaw.
+   * Off-diagonal elements express correlation between axes (set to 0 = uncorrelated).
+   * Loaded from the @b covariance ROS parameter in on_configure(); defaults to all zeros.
+   */
   std::array<double, 36> covariance_{};
 
+  /**
+   * @brief Cumulative distance integrated per wheel since construction (metres).
+   *
+   * Used to compute per-cycle deltas in update() without re-integrating the
+   * full command history from the beginning each time.
+   * Indexed by DD_LEFT and DD_RIGHT.
+   */
   std::array<double, 2> integrated_distance_ = {0.0, 0.0};
 };
 }  // namespace rr_motor_controller
