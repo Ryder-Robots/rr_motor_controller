@@ -28,6 +28,7 @@
 #include "rr_common_base/rr_gpio_plugin_iface.hpp"
 #include "rr_motor_controller/rr_motor_controller.hpp"
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
+#include "rr_motor_controller/motorcmdproc.hpp"
 #include <vector>
 #include <deque>
 
@@ -73,6 +74,7 @@ public:
     declare_parameter("motor_count", 0);        // number of motors to manage
     declare_parameter("ppr", 8);                // pulses per revolution (shared across motors)
     declare_parameter("wheel_radius", 20);      // wheel radius in mm (assumed uniform)
+    declare_parameter("wheel_base", 74);        // distance between left and right side wheels in mm
 
     // Board-specific GPIO transport plugin (pluginlib class name).
     declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
@@ -98,6 +100,8 @@ protected:
 private:
   // Motor controllers, one per physical motor. Indexed by motor position.
   std::vector<RrMotorController> motors_;
+
+  std::unique_ptr<MotorCmdProc> mt_cmd_proc_ {nullptr};
 
   // Per-motor command queues. command_queue_[i] feeds motors_[i].
   // Commands whose ttl_ns has expired are discarded before processing.

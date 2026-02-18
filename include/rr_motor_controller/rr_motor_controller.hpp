@@ -57,7 +57,7 @@ class RrMotorController : public rclcpp_lifecycle::LifecycleNode
 public:
   explicit RrMotorController(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("MotorController", options)
   {
-    // set up paramters.
+    // set up parameters.
     declare_parameter("motor_pos", 0);
     declare_parameter("ppr", 8);
     declare_parameter("wheel_radius", 20);
