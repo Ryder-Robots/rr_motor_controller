@@ -79,26 +79,31 @@ public:
   /** @copydoc MotorCmdProc::proc_odom */
   nav_msgs::msg::Odometry proc_odom(const std::vector<MotorCommand>) override;
 
-  /**
-   * @brief Integrate wheel motion and update the dead-reckoned pose.
-   *
-   * Must be called periodically (e.g. from a timer callback).  On each call it:
-   *  1. Computes the distance each wheel has travelled since the last update
-   *     by integrating @c command_history_ up to the current time.
-   *  2. Applies differential-drive kinematics to advance @c x_, @c y_, and
-   *     @c theta_.
-   *  3. Stores the instantaneous linear and angular velocities for the next
-   *     @c proc_odom call.
-   *  4. Prunes expired commands from @c command_history_.
-   */
-  void update() override;
-
   /** Index of the left motor within command_history_ and integrated_distance_. */
   static constexpr int DD_LEFT = 0;
   /** Index of the right motor within command_history_ and integrated_distance_. */
   static constexpr int DD_RIGHT = 1;
 
 protected:
+
+  /**
+   * @brief Integrate wheel motion and update the dead-reckoned pose.
+   *
+   * Called internally by @c proc_odom() on every odometry request.  On each
+   * call it:
+   *  1. Computes the distance each wheel has travelled since the last update
+   *     by integrating @c command_history_ up to the current time.
+   *  2. Applies differential-drive kinematics to advance @c x_, @c y_, and
+   *     @c theta_.
+   *  3. Computes instantaneous linear and angular velocities (@c v_linear_,
+   *     @c v_angular_) from the displacement and elapsed time.
+   *  4. Prunes expired commands from @c command_history_.
+   *
+   * @return The timestamp (nanoseconds, RCL_STEADY_TIME) used for this update,
+   *         which is also applied to the odometry message header stamp.
+   */
+  uint64_t update();
+
   /**
    * @brief Build a MotorCommand from a signed velocity.
    *
@@ -122,7 +127,7 @@ protected:
    * @param now_ns  Current time in nanoseconds (RCL_STEADY_TIME).
    * @return Signed distance in metres (negative = backward).
    */
-  static double compute_distance(const std::vector<rr_motor_controller::MotorCommand>& history, uint64_t now_ns);
+  double compute_distance(const std::vector<rr_motor_controller::MotorCommand>& history, uint64_t now_ns);
 
   /**
    * @brief Remove commands from history that are no longer needed.
@@ -135,6 +140,9 @@ protected:
   void prune_history(uint64_t now_ns);
 
 private:
+
+  bool is_configured = false;
+
   /** Time-to-live applied to each issued MotorCommand (nanoseconds). */
   uint64_t ttl_ns_ = 0;
 
@@ -159,11 +167,8 @@ private:
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_{ nullptr };
 
   /** Timestamp of the previous update() call (nanoseconds, RCL_STEADY_TIME). */
-  double last_update_ns_ = 0;
-  /** Incremental centre-point displacement computed in the last update() (metres). */
-  double d_centre = 0;
-  /** Incremental heading change computed in the last update() (radians). */
-  double d_theta = 0;
+  uint64_t last_update_ns_ = 0;
+
   /** Duration of the last update cycle (seconds). */
   double dt_ = 0.0;
 

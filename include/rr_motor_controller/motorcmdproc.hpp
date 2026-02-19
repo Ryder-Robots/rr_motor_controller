@@ -56,8 +56,6 @@ namespace rr_motor_controller {
          */
         virtual std::vector<MotorCommand> proc_twist(geometry_msgs::msg::Twist  msg) = 0;
 
-        virtual void update() = 0;
-
         /**
          * @brief Compute odometry from motor command feedback.
          * @param commands Current motor command state for each motor.
