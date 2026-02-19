@@ -104,6 +104,13 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
   target_link_libraries(test_rr_motor_controller rr_motor_controller)
+
+  # Add DifferentialCmdProc unit tests
+  ament_add_gtest(test_differential test/test_differential.cpp)
+  target_include_directories(test_differential PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+  target_link_libraries(test_differential rr_motor_controller)
 endif()
 
 

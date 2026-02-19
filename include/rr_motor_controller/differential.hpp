@@ -20,6 +20,7 @@
 
 #pragma once
 #include "rr_motor_controller/motorcmdproc.hpp"
+#include "rr_motor_controller/visibility_control.h"
 #include <vector>
 #include <array>
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
@@ -52,7 +53,7 @@ namespace rr_motor_controller
  *  - Index 0: left motor
  *  - Index 1: right motor
  */
-class DifferentialCmdProc : public MotorCmdProc
+class RR_MOTOR_CONTROLLER_PUBLIC DifferentialCmdProc : public MotorCmdProc
 {
 public:
   DifferentialCmdProc() = default;
