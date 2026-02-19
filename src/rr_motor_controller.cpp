@@ -153,7 +153,7 @@ CallbackReturn RrMotorController::on_cleanup(const State& state)
 // This mehthod will significantly change, it will no longer be a subscription service.
 // or get a interface request, more than likely it will get ran in some sort of looop
 // possibly with hardware clock.
-void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& req)
+void RrMotorController::process_cmd(const rr_interfaces::msg::Motors& req)
 {
   RCLCPP_DEBUG(node_->get_logger(), "subscriber callback is getting called!");
 

@@ -115,10 +115,6 @@ private:
 
   std::unique_ptr<MotorCmdProc> mt_cmd_proc_{ nullptr };
 
-  // Per-motor command queues. command_queue_[i] feeds motors_[i].
-  // Commands whose ttl_ns has expired are discarded before processing.
-  std::array<std::deque<MotorCommand>, 2> command_queue_;
-
   std::unique_ptr<pluginlib::ClassLoader<RRGPIOInterface>> poly_loader_{ nullptr };  ///< GPIO plugin loader.
   std::shared_ptr<RRGPIOInterface> gpio_plugin_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_{ nullptr };  ///< Twist command input.

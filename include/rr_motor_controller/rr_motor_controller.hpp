@@ -91,7 +91,7 @@ protected:
    * @brief Subscription handler for Motors messages. Stores the requested
    * target velocity and direction for the motor at motor_pos_.
    */
-  void subscribe_callback_(const rr_interfaces::msg::Motors& req);
+  void process_cmd(const rr_interfaces::msg::Motors& req);
 
   /**
    * @brief Wall timer callback. Computes duty cycle from target_velocity_
