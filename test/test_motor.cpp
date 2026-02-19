@@ -247,6 +247,7 @@ TEST_F(MotorTest, SetPWM) {
   EXPECT_EQ(mock_gpio_->last_pwm_duty, 50 + rr_motor_controller::Motor::DUTY_OFFSET);
 }
 
+// Getting failures for this test on occassion.
 TEST_F(MotorTest, GetPWM) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
   node->declare_parameter("pwm_pin", 12);

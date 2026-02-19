@@ -29,8 +29,13 @@
 #include "rr_motor_controller/rr_motor_controller.hpp"
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
 #include "rr_motor_controller/motorcmdproc.hpp"
+
+// TODO: this can be deprecated if different robots become a plugin.
+#include "rr_motor_controller/differential.hpp"
+
 #include <vector>
 #include <deque>
+#include <array>
 
 namespace rr_motor_controller
 {
@@ -56,7 +61,6 @@ class RrECU : public rclcpp_lifecycle::LifecycleNode
   using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 
 public:
-
   /**
    * @brief Construct the ECU node and declare parameters.
    *
@@ -68,16 +72,23 @@ public:
   explicit RrECU(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("RrECU", options)
   {
     declare_parameter("encoder_pins", std::vector<int64_t>{});  // one encoder pin per motor
-    declare_parameter("pwm_pins",  std::vector<int64_t>{});     // one PWM pin per motor
+    declare_parameter("pwm_pins", std::vector<int64_t>{});      // one PWM pin per motor
     declare_parameter("dir_pins", std::vector<int64_t>{});      // one direction pin per motor
 
-    declare_parameter("motor_count", 0);        // number of motors to manage
-    declare_parameter("ppr", 8);                // pulses per revolution (shared across motors)
-    declare_parameter("wheel_radius", 20);      // wheel radius in mm (assumed uniform)
-    declare_parameter("wheel_base", 74);        // distance between left and right side wheels in mm
+    declare_parameter("motor_count", 0);    // number of motors to manage
+    declare_parameter("ppr", 8);            // pulses per revolution (shared across motors)
+    declare_parameter("wheel_radius", 20);  // wheel radius in mm (assumed uniform)
+    declare_parameter("wheel_base", 74);    // distance between left and right side wheels in mm
+    declare_parameter("ttl_ns", 0);         // time to live, the expiry of each command recieved in subscription.
+    declare_parameter("covariance", std::vector<double>());  // adjustments for noise with six degrees of freedom (x, y,
+                                                             // z, roll, pitch, and yaw)
 
     // Board-specific GPIO transport plugin (pluginlib class name).
     declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
+    declare_parameter("encoder_timeout",
+                      0);  //  timeout in milliseconds for the ISR to be called after the edge is detected, if the edge
+                           //  is not detected within the timeout period, the ISR will be called with level = -1. If
+                           //  timeout is 0, the ISR will be called immediately after the edge is detected.
   }
 
   ~RrECU() = default;
@@ -99,18 +110,20 @@ protected:
 
 private:
   // Motor controllers, one per physical motor. Indexed by motor position.
-  std::vector<RrMotorController> motors_;
+  // allocate memory to stack, since these will not change.
+  std::array<RrMotorController, 2> motors_;
 
-  std::unique_ptr<MotorCmdProc> mt_cmd_proc_ {nullptr};
+  std::unique_ptr<MotorCmdProc> mt_cmd_proc_{ nullptr };
 
   // Per-motor command queues. command_queue_[i] feeds motors_[i].
   // Commands whose ttl_ns has expired are discarded before processing.
-  std::vector<std::deque<MotorCommand>> command_queue_;
+  std::array<std::deque<MotorCommand>, 2> command_queue_;
 
   std::unique_ptr<pluginlib::ClassLoader<RRGPIOInterface>> poly_loader_{ nullptr };  ///< GPIO plugin loader.
   std::shared_ptr<RRGPIOInterface> gpio_plugin_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_{ nullptr };  ///< Twist command input.
-  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Odometry>::SharedPtr publisher_{ nullptr };  ///< Aggregated motor status output.
+  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Odometry>::SharedPtr publisher_{ nullptr };  ///< Aggregated motor
+                                                                                                   ///< status output.
 };
 
 }  // namespace rr_motor_controller

@@ -48,32 +48,14 @@
 namespace rr_motor_controller
 {
 
-class RrMotorController : public rclcpp_lifecycle::LifecycleNode
+class RrMotorController
 {
   using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
   using State = rclcpp_lifecycle::State;
   using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 
 public:
-  explicit RrMotorController(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("MotorController", options)
-  {
-    // set up parameters.
-    declare_parameter("motor_pos", 0);
-    declare_parameter("ppr", 8);
-    declare_parameter("wheel_radius", 20);
-    declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
-
-    // encoder parameters
-    declare_parameter("encoder_pin", 0);
-    declare_parameter("encoder_timeout", 0);
-
-    // motor parameters
-    declare_parameter("pwm_pin", -1);
-    declare_parameter("dir_pin", -1);
-
-    // This should be reasonable and probally does not need changing,  but available just in case.
-    declare_parameter("pwm_freq", 2000);
-  }
+  RrMotorController() = default;
 
   virtual ~RrMotorController() = default;
 
@@ -81,21 +63,21 @@ public:
    * @brief Loads parameters (motor_pos, ppr, wheel_radius), computes dpp_,
    * initialises GPIO plugin, and configures motor and encoder hardware.
    */
-  CallbackReturn on_configure(const State& state) override;
+  CallbackReturn on_configure(const State& state, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node, int mpos, std::shared_ptr<RRGPIOInterface> gpio_plugin);
 
   /**
    * @brief Activates motor and encoder, creates ROS subscription/publisher,
    * instantiates duty convertor, and starts PID wall timer.
    */
-  CallbackReturn on_activate(const State& state) override;
+  CallbackReturn on_activate(const State& state);
 
   /**
    * @brief Stops the control loop, releases ROS interfaces, and deactivates
    * encoder and motor hardware (in that order).
    */
-  CallbackReturn on_deactivate(const State& state) override;
+  CallbackReturn on_deactivate(const State& state);
 
-  CallbackReturn on_cleanup(const State& state) override;
+  CallbackReturn on_cleanup(const State& state);
 
 protected:
   /**
@@ -104,11 +86,6 @@ protected:
    * Called from the GPIO interrupt context — must be lock-free.
    */
   void encoder_cb_(const int gpio_pin, const uint32_t delta_us, const uint32_t tick, const TickStatus tick_status);
-
-  /**
-   * @brief Publishes velocity and diagnostic counters to the ECU.
-   */
-  void publish_callback_();
 
   /**
    * @brief Subscription handler for Motors messages. Stores the requested
@@ -164,6 +141,8 @@ private:
   rclcpp::Subscription<rr_interfaces::msg::Motors>::SharedPtr subscription_{ nullptr };
   rclcpp::TimerBase::SharedPtr pid_timer_;
   rclcpp::TimerBase::SharedPtr sub_timer_;
+
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };
 
 }  // namespace rr_motor_controller

@@ -25,6 +25,7 @@
  */
 #pragma once
 
+#include "rr_motor_controller/visibility_control.h"
 #include <algorithm>
 #include "rr_common_base/rr_gpio_plugin_iface.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -40,7 +41,7 @@ namespace rr_motor_controller
  * Note that this class is not a node on its own, it separates responsibilities from the motor controller
  * into specific motor instances.
  */
-class Motor
+class RR_MOTOR_CONTROLLER_PUBLIC Motor
 {
 public:
   constexpr static int BACKWARD = rrobots::interfaces::RRGPIOInterface::RRGPIO_LOW;

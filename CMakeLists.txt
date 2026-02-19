@@ -24,6 +24,7 @@ add_library(rr_motor_controller
   src/dc_linear.cpp
   src/motor.cpp
   src/encoder.cpp
+  src/rr_motor_ecu_node.cpp
   src/differential.cpp)
 add_library(rr_motor_controller::rr_motor_controller ALIAS rr_motor_controller)
 target_compile_features(rr_motor_controller PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
@@ -115,7 +116,7 @@ endif()
 
 
 rclcpp_components_register_nodes(rr_motor_controller
-  "rr_motor_controller::RrMotorController"
+  "rr_motor_controller::RrECU"
 )
 
 ament_export_include_directories(

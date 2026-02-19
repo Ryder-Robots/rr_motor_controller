@@ -43,6 +43,8 @@ namespace rr_motor_controller {
     class MotorCmdProc  {
         public:
 
+        virtual ~MotorCmdProc() = default;
+
         /**
          * @brief Lifecycle configure callback — acquire parameters from the node.
          * @param node The lifecycle node that owns this processor.

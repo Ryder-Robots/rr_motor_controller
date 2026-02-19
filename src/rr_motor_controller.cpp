@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// TODO: internal timing in this class and downwards should be changed to timerfd_create, this should stop
+// CPU overload which is very expensive for the small processor.
+
 #include "rr_motor_controller/rr_motor_controller.hpp"
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
@@ -27,14 +30,17 @@ using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 namespace rr_motor_controller
 {
 
-CallbackReturn RrMotorController::on_configure(const State& state)
+CallbackReturn RrMotorController::on_configure(const State& state,
+                                               std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node, int mpos,
+                                               std::shared_ptr<RRGPIOInterface> gpio_plugin)
 {
-  RCLCPP_INFO(get_logger(), "Configuring motor controller...");
+  RCLCPP_INFO(node->get_logger(), "Configuring motor controller...");
+  gpio_plugin_ = gpio_plugin;
   // Parameters are loaded first — a failure here leaves no hardware state to unwind.
-  if (!(get_parameter("motor_pos", motor_pos_) && get_parameter("ppr", ppr_) &&
-        get_parameter("wheel_radius", wheel_radius_)))
+  if (!(node->get_parameter("motor_pos", motor_pos_) && node->get_parameter("ppr", ppr_) &&
+        node->get_parameter("wheel_radius", wheel_radius_)))
   {
-    RCLCPP_ERROR(get_logger(), "Failed to get parameters for motor configuration");
+    RCLCPP_ERROR(node->get_logger(), "Failed to get parameters for motor configuration");
     return CallbackReturn::FAILURE;
   }
 
@@ -42,33 +48,11 @@ CallbackReturn RrMotorController::on_configure(const State& state)
   //   velocity (m/s) = (dpp_ * 1000) / avg_us
   dpp_ = (2 * M_PI * wheel_radius_) / ppr_;
 
-  // attempt to load the plugin.
-  std::string plugin_param = get_parameter("transport_plugin").as_string();
-  RCLCPP_DEBUG(get_logger(), "transport plugin is '%s'", plugin_param.c_str());
-
-  try
-  {
-    poly_loader_ = std::make_unique<pluginlib::ClassLoader<RRGPIOInterface>>("rr_common_base",
-                                                                             "rrobots::interfaces::"
-                                                                             "RRGPIOInterface");
-    gpio_plugin_ = poly_loader_->createUniqueInstance(plugin_param);
-    if (gpio_plugin_->configure(state, this->shared_from_this()) != CallbackReturn::SUCCESS)
-    {
-      RCLCPP_ERROR(get_logger(), "could not configure gpio_plugin!!");
-      return CallbackReturn::FAILURE;
-    }
-  }
-  catch (pluginlib::PluginlibException& ex)
-  {
-    RCLCPP_FATAL(get_logger(), "could not load transport plugin: %s - reported: %s", plugin_param.c_str(), ex.what());
-    return CallbackReturn::ERROR;
-  }
-
   // Configure motor hardware. On failure the GPIO plugin is not rolled back here;
   // on_deactivate is expected to handle full teardown.
-  if (motor_.configure(state, this->shared_from_this(), gpio_plugin_) != CallbackReturn::SUCCESS)
+  if (motor_.configure(state, node->shared_from_this(), gpio_plugin_) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "Motor configuration failed!!");
+    RCLCPP_ERROR(node->get_logger(), "Motor configuration failed!!");
     return CallbackReturn::FAILURE;
   }
 
@@ -77,17 +61,12 @@ CallbackReturn RrMotorController::on_configure(const State& state)
     this->encoder_cb_(gpio_pin, delta_us, tick, tick_status);
   };
 
-  if (encoder_.configure(state, this->shared_from_this(), gpio_plugin_, tick_cb_) != CallbackReturn::SUCCESS)
+  if (encoder_.configure(state, node->shared_from_this(), gpio_plugin_, tick_cb_) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "Encoder configuration failed!!");
+    RCLCPP_ERROR(node->get_logger(), "Encoder configuration failed!!");
     return CallbackReturn::FAILURE;
   }
-
-  // create publisher.
-  std::string topic = rr_constants::TOPIC_MOTOR + std::to_string(motor_pos_) + "/stats";
-  rclcpp::PublisherOptionsWithAllocator<std::allocator<void>> options;
-  publisher_ = create_publisher<rr_interfaces::msg::MotorResponse>(topic, rclcpp::SensorDataQoS(), options);
-
+  node_ = node;
   return CallbackReturn::SUCCESS;
 }
 
@@ -96,14 +75,14 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   // Activate plugin, this will create a hardware instance of the GPIO layer
   if (gpio_plugin_ == nullptr || gpio_plugin_->on_activate(state) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "Activation of gpio_plugin failed!!");
+    RCLCPP_ERROR(node_->get_logger(), "Activation of gpio_plugin failed!!");
     return CallbackReturn::FAILURE;
   }
 
   // Activate first — if encoder fails, roll back motor.
   if (motor_.on_activate(state) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "Motor activation failed!!");
+    RCLCPP_ERROR(node_->get_logger(), "Motor activation failed!!");
 
     gpio_plugin_->on_deactivate(state);
     return CallbackReturn::FAILURE;
@@ -113,25 +92,17 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   {
     motor_.on_deactivate(state);
     gpio_plugin_->on_deactivate(state);
-    RCLCPP_ERROR(get_logger(), "Encoder activation failed!!");
+    RCLCPP_ERROR(node_->get_logger(), "Encoder activation failed!!");
     return CallbackReturn::FAILURE;
   }
-
-  // setup subscription and publisher.
-  subscription_ = create_subscription<rr_interfaces::msg::Motors>(
-      rr_constants::TOPIC_MOTOR, rclcpp::SensorDataQoS(),
-      std::bind(&RrMotorController::subscribe_callback_, this, std::placeholders::_1));
 
   // Duty convertor strategy — currently linear regression, swappable to PID.
   duty_conv_ = std::make_shared<rr_motor_controller::DutyConvertorLinearRegression>();
 
   // PID timer fires every PID_TIMER_DELTA ms to adjust motor duty.
+  // TODO: this needs to change to timerfd_create
   pid_timer_ =
-      create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
-
-  publisher_->on_activate();
-  sub_timer_ = create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA * 2),
-                                 std::bind(&RrMotorController::publish_callback_, this));
+      node_->create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
 
   running_.store(true, std::memory_order_release);
   return CallbackReturn::SUCCESS;
@@ -154,18 +125,18 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
 
   if (encoder_.on_deactivate(state) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "Encoder deactivation failed!!");
+    RCLCPP_ERROR(node_->get_logger(), "Encoder deactivation failed!!");
     rv = CallbackReturn::FAILURE;
   }
 
   if (motor_.on_deactivate(state) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "Motor deactivation failed!!");
+    RCLCPP_ERROR(node_->get_logger(), "Motor deactivation failed!!");
     rv = CallbackReturn::FAILURE;
   }
   if (gpio_plugin_->on_deactivate(state) != CallbackReturn::SUCCESS)
   {
-    RCLCPP_ERROR(get_logger(), "GPIO plugin deactivation failed!!");
+    RCLCPP_ERROR(node_->get_logger(), "GPIO plugin deactivation failed!!");
     rv = CallbackReturn::FAILURE;
   }
 
@@ -179,37 +150,22 @@ CallbackReturn RrMotorController::on_cleanup(const State& state)
   return CallbackReturn::SUCCESS;
 }
 
-void RrMotorController::publish_callback_()
-{
-  // RCLCPP_DEBUG(get_logger(), "publish callback is getting called!");
-
-  if (running_.load(std::memory_order_acquire))
-  {
-    // Do not log, this could significantly slow processing.
-    rr_interfaces::msg::MotorResponse response;
-    response.header.stamp = now();
-    response.header.frame_id = rr_constants::LINK_MOTOR;
-    response.velocity = velocity_.load();
-    response.total_pulses = total_pulses_.load();
-    response.healthy_pulses = healthy_pulses_.load();
-    response.boundary_triggers = boundary_triggers_.load();
-    publisher_->publish(response);
-  }
-}
-
+// This mehthod will significantly change, it will no longer be a subscription service.
+// or get a interface request, more than likely it will get ran in some sort of looop
+// possibly with hardware clock.
 void RrMotorController::subscribe_callback_(const rr_interfaces::msg::Motors& req)
 {
-  RCLCPP_DEBUG(get_logger(), "subscriber callback is getting called!");
+  RCLCPP_DEBUG(node_->get_logger(), "subscriber callback is getting called!");
 
   if (!running_.load(std::memory_order_acquire))
   {
     return;
   }
 
-  RCLCPP_DEBUG(get_logger(), "seeing if motor needs to be updated");
+  RCLCPP_DEBUG(node_->get_logger(), "seeing if motor needs to be updated");
   if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
   {
-    RCLCPP_DEBUG(get_logger(), "attempting to update the motor");
+    RCLCPP_DEBUG(node_->get_logger(), "attempting to update the motor");
     target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
     direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
   }
@@ -284,4 +240,4 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
 }
 
 }  // namespace rr_motor_controller
-RCLCPP_COMPONENTS_REGISTER_NODE(rr_motor_controller::RrMotorController)
+
