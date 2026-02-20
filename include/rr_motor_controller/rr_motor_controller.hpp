@@ -55,7 +55,7 @@ class RrMotorController
   using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 
 public:
-  RrMotorController() = default;
+  explicit RrMotorController() {}
 
   virtual ~RrMotorController() = default;
 

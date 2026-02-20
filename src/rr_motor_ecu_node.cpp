@@ -57,8 +57,8 @@ CallbackReturn RrECU::on_configure(const State& state)
   mt_cmd_proc_->on_configure(this->shared_from_this());
 
   // Configure motors
-  motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT);
-  motors_[DifferentialCmdProc::DD_RIGHT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_RIGHT);
+  motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT, gpio_plugin_);
+  motors_[DifferentialCmdProc::DD_RIGHT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_RIGHT, gpio_plugin_);
 
   return CallbackReturn::SUCCESS;
 }
@@ -74,9 +74,10 @@ CallbackReturn RrECU::on_activate(const State& state)
     // TODO: activate callbacks and timers for motor_controllers
     if (motors_[i].on_activate(state) != CallbackReturn::SUCCESS) {
         RCLCPP_FATAL(get_logger(), "failed to activate motor(s)");
-        for (; i > -1; i--) {
+        do {
             motors_[i].on_deactivate(state);
-        }
+            i--;
+        } while (i != 0);
         return CallbackReturn::FAILURE;
     }
   }
@@ -88,6 +89,17 @@ CallbackReturn RrECU::on_activate(const State& state)
 
 CallbackReturn RrECU::on_deactivate(const State& state)
 {
+
+  CallbackReturn rv = CallbackReturn::SUCCESS;
+  if ( motors_[DD_LEFT].on_deactivate(state) != CallbackReturn::SUCCESS || motors_[DD_RIGHT] != CallbackReturn::SUCCESS) {
+    rv = CallbackReturn::FAILURE;
+  }
+  if (gpio_plugin_->on_deactivate(state) != CallbackReturn::SUCCESS) {
+    rv = CallbackReturn::FAILURE;
+    RCLCPP_ERROR(node_->get_logger(), "GPIO plugin not terminated correctly!!!");
+
+  }
+  return rv;
 }
 
 CallbackReturn RrECU::on_cleanup(const State& state)
@@ -97,6 +109,9 @@ CallbackReturn RrECU::on_cleanup(const State& state)
 
   gpio_plugin_.reset();
   mt_cmd_proc_.reset();
+  poly_loader_.reset();
+  subscription_.reset();
+  publisher_.reset();
 
   return CallbackReturn::SUCCESS;
 }

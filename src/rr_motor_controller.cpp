@@ -100,7 +100,7 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   duty_conv_ = std::make_shared<rr_motor_controller::DutyConvertorLinearRegression>();
 
   // PID timer fires every PID_TIMER_DELTA ms to adjust motor duty.
-  // TODO: this needs to change to timerfd_create
+  // TODO: this needs to change to timerfd_create, this should be in its own thread
   pid_timer_ =
       node_->create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
 
