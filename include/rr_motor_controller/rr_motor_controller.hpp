@@ -31,6 +31,8 @@
 #pragma once
 #include <string>
 #include <cmath>
+#include <pthread.h>
+#include <sys/timerfd.h>
 #include <pluginlib/class_loader.hpp>
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -139,8 +141,7 @@ private:
   // -- ROS interfaces (created in on_activate, released in on_deactivate) --
   rclcpp_lifecycle::LifecyclePublisher<rr_interfaces::msg::MotorResponse>::SharedPtr publisher_{ nullptr };
   rclcpp::Subscription<rr_interfaces::msg::Motors>::SharedPtr subscription_{ nullptr };
-  rclcpp::TimerBase::SharedPtr pid_timer_;
-  rclcpp::TimerBase::SharedPtr sub_timer_;
+  std::thread pid_timer_;
 
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };

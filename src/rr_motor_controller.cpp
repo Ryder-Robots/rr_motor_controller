@@ -99,12 +99,18 @@ CallbackReturn RrMotorController::on_activate(const State& state)
   // Duty convertor strategy — currently linear regression, swappable to PID.
   duty_conv_ = std::make_shared<rr_motor_controller::DutyConvertorLinearRegression>();
 
-  // PID timer fires every PID_TIMER_DELTA ms to adjust motor duty.
-  // TODO: this needs to change to timerfd_create, this should be in its own thread
-  pid_timer_ =
-      node_->create_wall_timer(std::chrono::milliseconds(PID_TIMER_DELTA), std::bind(&RrMotorController::pid_cb_, this));
-
+  // Give a one second delay to allow running to be set to true.
   running_.store(true, std::memory_order_release);
+  sleep(1);
+
+  pid_timer_ = std::thread(&RrMotorController::pid_cb_, this);
+  sched_param sch{};
+  sch.sched_priority = 80;
+  if (pthread_setschedparam(pid_timer_.native_handle(), SCHED_FIFO, &sch) != 0)
+  {
+    RCLCPP_ERROR(node_->get_logger(), "Failed to create PID timer!!");
+  }
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -113,15 +119,15 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
   // Signal all callbacks to stop, then cancel timers before destroying
   // the resources they reference.
   running_.store(false, std::memory_order_release);
-  pid_timer_.reset();
-  sub_timer_.reset();
-  subscription_.reset();
+
   publisher_->on_deactivate();
-  publisher_.reset();
-  duty_conv_.reset();
 
   // Deactivate hardware — continue through failures to ensure both are attempted.
   CallbackReturn rv = CallbackReturn::SUCCESS;
+  if (pid_timer_.joinable())
+  {
+    pid_timer_.join();
+  }
 
   if (encoder_.on_deactivate(state) != CallbackReturn::SUCCESS)
   {
@@ -146,6 +152,9 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
 CallbackReturn RrMotorController::on_cleanup(const State& state)
 {
   (void)state;
+  subscription_.reset();
+  publisher_.reset();
+  duty_conv_.reset();
   tick_cb_ = nullptr;
   return CallbackReturn::SUCCESS;
 }
@@ -171,20 +180,60 @@ void RrMotorController::process_cmd(const rr_interfaces::msg::Motors& req)
   }
 }
 
+//
 void RrMotorController::pid_cb_()
 {
-  if (!running_.load(std::memory_order_acquire))
+  bool running = running_.load(std::memory_order_acquire);
+  struct itimerspec ts {};
+  ts.it_value.tv_sec     = 0;
+  ts.it_value.tv_nsec    = PID_TIMER_DELTA;
+  ts.it_interval.tv_sec  = 0;
+  ts.it_interval.tv_nsec = PID_TIMER_DELTA;
+
+  auto timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+  if (timer_fd < 0)
   {
+    RCLCPP_ERROR(node_->get_logger(), "unable to create timer");
+    running_.store(false, std::memory_order_relaxed);
     return;
   }
 
-  auto duty = static_cast<int>(duty_conv_->compute(target_velocity_, velocity_, PID_TIMER_DELTA));
-  motor_.set_pwm(duty);
-  // only change direction if it is different, this could create some instability.
-  if (motor_.get_direction() != direction_.load())
+  if (timerfd_settime(timer_fd, 0, &ts, nullptr) < 0)
   {
-    motor_.set_direction(direction_.load());
+    RCLCPP_ERROR(node_->get_logger(), "unable to set timer");
+    close(timer_fd);
+    running_.store(false, std::memory_order_relaxed);
+    return;
   }
+
+  uint64_t expiration = 0;
+
+  while (running)
+  {
+    ssize_t ret = read(timer_fd, &expiration, sizeof(expiration));
+    if (ret < 0)
+    {
+      if (errno == EINTR)
+        continue;
+      RCLCPP_ERROR(node_->get_logger(), "error reading PID timer");
+      close(timer_fd);
+      running_.store(false, std::memory_order_relaxed);
+      return;
+    }
+
+    auto duty = static_cast<int>(
+        duty_conv_->compute(target_velocity_, velocity_.load(std::memory_order_acquire), PID_TIMER_DELTA));
+    motor_.set_pwm(duty);
+
+    // only change direction if it is different, this could create some instability.
+    if (motor_.get_direction() != direction_.load())
+    {
+      motor_.set_direction(direction_.load());
+    }
+
+    running = running_.load(std::memory_order_acquire);
+  }
+  close(timer_fd);
 }
 
 void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us, const uint32_t tick,
@@ -226,8 +275,6 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
       if (accum > 0 && ct > 0)
       {
         double avg_us = static_cast<double>(accum) / static_cast<double>(ct);
-        // velocity (m/s) = (dpp_ mm / avg_us us) * 1000
-        //   = (dpp_ * 1e-3 m) / (avg_us * 1e-6 s) = (dpp_ / avg_us) * 1e3
         double new_vel = (dpp_ * 1000.0) / avg_us;
         double current_vel = velocity_.load(std::memory_order_acquire);
 
@@ -240,4 +287,3 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
 }
 
 }  // namespace rr_motor_controller
-
