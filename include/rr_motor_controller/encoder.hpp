@@ -77,7 +77,7 @@ public:
   CallbackReturn configure(const rclcpp_lifecycle::State& previous_state,
                            rclcpp_lifecycle::LifecycleNode::SharedPtr node,
                            std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin,
-                           EncoderTickCallback tick_cb);
+                           EncoderTickCallback tick_cb, int mpos);
 
   CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state);
 

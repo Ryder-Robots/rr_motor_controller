@@ -50,7 +50,7 @@ CallbackReturn RrMotorController::on_configure(const State& state,
 
   // Configure motor hardware. On failure the GPIO plugin is not rolled back here;
   // on_deactivate is expected to handle full teardown.
-  if (motor_.configure(state, node->shared_from_this(), gpio_plugin_) != CallbackReturn::SUCCESS)
+  if (motor_.configure(state, node->shared_from_this(), gpio_plugin_, mpos) != CallbackReturn::SUCCESS)
   {
     RCLCPP_ERROR(node->get_logger(), "Motor configuration failed!!");
     return CallbackReturn::FAILURE;
@@ -61,7 +61,7 @@ CallbackReturn RrMotorController::on_configure(const State& state,
     this->encoder_cb_(gpio_pin, delta_us, tick, tick_status);
   };
 
-  if (encoder_.configure(state, node->shared_from_this(), gpio_plugin_, tick_cb_) != CallbackReturn::SUCCESS)
+  if (encoder_.configure(state, node->shared_from_this(), gpio_plugin_, tick_cb_, mpos) != CallbackReturn::SUCCESS)
   {
     RCLCPP_ERROR(node->get_logger(), "Encoder configuration failed!!");
     return CallbackReturn::FAILURE;

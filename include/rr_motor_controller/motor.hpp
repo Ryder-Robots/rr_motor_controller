@@ -68,7 +68,8 @@ public:
    */
   CallbackReturn configure(const rclcpp_lifecycle::State& previous_state,
                            rclcpp_lifecycle::LifecycleNode::SharedPtr node,
-                           std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin);
+                           std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin,
+                          int mpos);
 
   /**
    * @fn on_activate
