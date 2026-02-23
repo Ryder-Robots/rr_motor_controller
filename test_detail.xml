@@ -1,41 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites tests="13" failures="2" disabled="0" errors="0" time="0.206" timestamp="2026-02-23T15:22:17.653" name="AllTests">
-  <testsuite name="RrMotorControllerTest" tests="13" failures="2" disabled="0" skipped="0" errors="0" time="0.205" timestamp="2026-02-23T15:22:17.653">
-    <testcase name="EncoderCbIgnoredWhenNotRunning" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="89" status="run" result="completed" time="0.034" timestamp="2026-02-23T15:22:17.653" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbCountsTotalPulses" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="97" status="run" result="completed" time="0.013" timestamp="2026-02-23T15:22:17.688" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbCountsHealthyPulses" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="111" status="run" result="completed" time="0.012" timestamp="2026-02-23T15:22:17.701" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbComputesVelocityAfterFullRevolution" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="139" status="run" result="completed" time="0.015" timestamp="2026-02-23T15:22:17.714" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbEmaSmoothing" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="154" status="run" result="completed" time="0.013" timestamp="2026-02-23T15:22:17.730" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbDeltaCounterResetsAfterRevolution" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="173" status="run" result="completed" time="0.013" timestamp="2026-02-23T15:22:17.743" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbNoVelocityIfAllPulsesOutOfWindow" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="185" status="run" result="completed" time="0.013" timestamp="2026-02-23T15:22:17.757" classname="RrMotorControllerTest" />
-    <testcase name="EncoderCbMixedHealthyAndUnhealthyPulses" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="198" status="run" result="completed" time="0.015" timestamp="2026-02-23T15:22:17.770" classname="RrMotorControllerTest" />
-    <testcase name="ProcessCmdStoresVelocityAndDirection" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="220" status="run" result="completed" time="0.013" timestamp="2026-02-23T15:22:17.786" classname="RrMotorControllerTest">
-      <failure message="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp:230&#x0A;Expected equality of these values:&#x0A;  ctrl_-&gt;target_velocity_.load()&#x0A;    Which is: 0&#x0A;  42.0&#x0A;    Which is: 42&#x0A;" type=""><![CDATA[/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp:230
-Expected equality of these values:
-  ctrl_->target_velocity_.load()
-    Which is: 0
-  42.0
-    Which is: 42
-]]></failure>
-      <failure message="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp:231&#x0A;Expected equality of these values:&#x0A;  ctrl_-&gt;direction_.load()&#x0A;    Which is: 1&#x0A;  rr_motor_controller::Motor::BACKWARD&#x0A;    Which is: 0&#x0A;" type=""><![CDATA[/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp:231
-Expected equality of these values:
-  ctrl_->direction_.load()
-    Which is: 1
-  rr_motor_controller::Motor::BACKWARD
-    Which is: 0
-]]></failure>
-    </testcase>
-    <testcase name="ProcessCmdDiscardedWhenTtlNotElapsed" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="235" status="run" result="completed" time="0.016" timestamp="2026-02-23T15:22:17.799" classname="RrMotorControllerTest">
-      <failure message="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp:246&#x0A;Expected equality of these values:&#x0A;  ctrl_-&gt;target_velocity_.load()&#x0A;    Which is: 42&#x0A;  99.0&#x0A;    Which is: 99&#x0A;" type=""><![CDATA[/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp:246
-Expected equality of these values:
-  ctrl_->target_velocity_.load()
-    Which is: 42
-  99.0
-    Which is: 99
-]]></failure>
-    </testcase>
-    <testcase name="ProcessCmdIgnoredWhenNotRunning" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="249" status="run" result="completed" time="0.012" timestamp="2026-02-23T15:22:17.816" classname="RrMotorControllerTest" />
-    <testcase name="OnCleanupResetsTickCallback" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="268" status="run" result="completed" time="0.016" timestamp="2026-02-23T15:22:17.829" classname="RrMotorControllerTest" />
-    <testcase name="DppComputedCorrectly" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="283" status="run" result="completed" time="0.013" timestamp="2026-02-23T15:22:17.845" classname="RrMotorControllerTest" />
+<testsuites tests="13" failures="0" disabled="0" errors="0" time="0.25" timestamp="2026-02-23T18:17:06.483" name="AllTests">
+  <testsuite name="RrMotorControllerTest" tests="13" failures="0" disabled="0" skipped="0" errors="0" time="0.25" timestamp="2026-02-23T18:17:06.483">
+    <testcase name="EncoderCbIgnoredWhenNotRunning" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="88" status="run" result="completed" time="0.041" timestamp="2026-02-23T18:17:06.483" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbCountsTotalPulses" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="96" status="run" result="completed" time="0.02" timestamp="2026-02-23T18:17:06.525" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbCountsHealthyPulses" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="110" status="run" result="completed" time="0.021" timestamp="2026-02-23T18:17:06.546" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbComputesVelocityAfterFullRevolution" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="138" status="run" result="completed" time="0.015" timestamp="2026-02-23T18:17:06.567" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbEmaSmoothing" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="153" status="run" result="completed" time="0.018" timestamp="2026-02-23T18:17:06.583" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbDeltaCounterResetsAfterRevolution" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="172" status="run" result="completed" time="0.017" timestamp="2026-02-23T18:17:06.602" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbNoVelocityIfAllPulsesOutOfWindow" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="184" status="run" result="completed" time="0.016" timestamp="2026-02-23T18:17:06.620" classname="RrMotorControllerTest" />
+    <testcase name="EncoderCbMixedHealthyAndUnhealthyPulses" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="197" status="run" result="completed" time="0.017" timestamp="2026-02-23T18:17:06.636" classname="RrMotorControllerTest" />
+    <testcase name="ProcessCmdStoresVelocityAndDirection" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="219" status="run" result="completed" time="0.021" timestamp="2026-02-23T18:17:06.654" classname="RrMotorControllerTest" />
+    <testcase name="ProcessCmdDiscardedWhenExpired" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="234" status="run" result="completed" time="0.018" timestamp="2026-02-23T18:17:06.676" classname="RrMotorControllerTest" />
+    <testcase name="ProcessCmdIgnoredWhenNotRunning" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="248" status="run" result="completed" time="0.013" timestamp="2026-02-23T18:17:06.694" classname="RrMotorControllerTest" />
+    <testcase name="OnCleanupResetsTickCallback" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="267" status="run" result="completed" time="0.012" timestamp="2026-02-23T18:17:06.708" classname="RrMotorControllerTest" />
+    <testcase name="DppComputedCorrectly" file="/home/aaron/ros2_ws/src/rr_motor_controller/test/test_rr_motor_controller.cpp" line="282" status="run" result="completed" time="0.012" timestamp="2026-02-23T18:17:06.721" classname="RrMotorControllerTest" />
   </testsuite>
 </testsuites>

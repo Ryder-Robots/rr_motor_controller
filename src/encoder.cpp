@@ -33,9 +33,6 @@ CallbackReturn MotorEncoder::configure(const rclcpp_lifecycle::State& previous_s
   RCLCPP_INFO(rclcpp::get_logger("MotorEncoder"), "Configuring encoder...");
 
   {
-    // int64_t pin{ -1 };
-    // int64_t timeout{ 0 };
-
     if (!(node->has_parameter("encoder_pins") && node->has_parameter("encoder_timeout")))
     {
       RCLCPP_ERROR(rclcpp::get_logger("MotorEncoder"), "pin, timeout, and min_interval are required parameters...");

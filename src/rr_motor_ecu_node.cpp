@@ -148,9 +148,6 @@ void RrECU::subscribe_callback_(const geometry_msgs::msg::Twist& req)
     motors_[DifferentialCmdProc::DD_LEFT].process_cmd(cmds[DifferentialCmdProc::DD_LEFT]);
     motors_[DifferentialCmdProc::DD_RIGHT].process_cmd(cmds[DifferentialCmdProc::DD_RIGHT]);
   }
-
-  motor_cmds_[DifferentialCmdProc::DD_LEFT] = cmds[DifferentialCmdProc::DD_LEFT];
-  motor_cmds_[DifferentialCmdProc::DD_RIGHT] = cmds[DifferentialCmdProc::DD_RIGHT];
 }
 
 void RrECU::publish_callback_()

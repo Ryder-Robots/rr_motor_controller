@@ -113,7 +113,6 @@ private:
   // Motor controllers, one per physical motor. Indexed by motor position.
   // allocate memory to stack, since these will not change.
   std::array<RrMotorController, 2> motors_;
-  std::array<MotorCommand, 2> motor_cmds_;
 
   std::unique_ptr<MotorCmdProc> mt_cmd_proc_{ nullptr };
 
