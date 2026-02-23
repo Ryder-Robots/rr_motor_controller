@@ -22,7 +22,6 @@
 // identified by motor_pos_ within the Motors message array.
 //
 // Control loop:
-//   subscribe_callback_ sets target_velocity_ from incoming Motors messages.
 //   encoder_cb_ measures actual velocity_ from encoder pulse timing (called per interrupt).
 //   pid_cb_ runs on a wall timer, computes duty from target vs actual, and sets PWM.
 //
@@ -57,19 +56,21 @@ class RrMotorController
   using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 
 public:
-  explicit RrMotorController() {}
+  RrMotorController()
+  {
+  }
 
-  virtual ~RrMotorController() = default;
+  ~RrMotorController() = default;
 
   /**
    * @brief Loads parameters (motor_pos, ppr, wheel_radius), computes dpp_,
-   * initialises GPIO plugin, and configures motor and encoder hardware.
+   * associates GPIO plugin to encoder and motor, and configures motor and encoder hardware.
    */
-  CallbackReturn on_configure(const State& state, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node, int mpos, std::shared_ptr<RRGPIOInterface> gpio_plugin);
+  CallbackReturn on_configure(const State& state, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node, int mpos,
+                              std::shared_ptr<RRGPIOInterface> gpio_plugin);
 
   /**
-   * @brief Activates motor and encoder, creates ROS subscription/publisher,
-   * instantiates duty convertor, and starts PID wall timer.
+   * @brief Activates motor and encoder.
    */
   CallbackReturn on_activate(const State& state);
 
@@ -111,7 +112,6 @@ private:
   // -- Hardware --
   Motor motor_;
   MotorEncoder encoder_;
-  std::unique_ptr<pluginlib::ClassLoader<RRGPIOInterface>> poly_loader_{ nullptr };
   std::shared_ptr<rr_motor_controller::DutyConversion> duty_conv_;
   std::shared_ptr<RRGPIOInterface> gpio_plugin_;
   EncoderTickCallback tick_cb_{ nullptr };
@@ -135,8 +135,8 @@ private:
 
   // -- Constants --
   constexpr static int64_t PID_TIMER_DELTA{ 100 };  // PID timer period in ms
-  constexpr static double MIN_DELTA_US{ 300 };      // encoder timing lower bound (us)
-  constexpr static double MAX_DELTA_US{ 3000 };     // encoder timing upper bound (us)
+  constexpr static uint32_t MIN_DELTA_US{ 300 };    // encoder timing lower bound (us)
+  constexpr static uint32_t MAX_DELTA_US{ 3000 };   // encoder timing upper bound (us)
 
   // -- ROS interfaces (created in on_activate, released in on_deactivate) --
   rclcpp_lifecycle::LifecyclePublisher<rr_interfaces::msg::MotorResponse>::SharedPtr publisher_{ nullptr };

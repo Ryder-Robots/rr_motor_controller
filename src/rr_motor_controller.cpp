@@ -18,9 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// TODO: internal timing in this class and downwards should be changed to timerfd_create, this should stop
-// CPU overload which is very expensive for the small processor.
-
 #include "rr_motor_controller/rr_motor_controller.hpp"
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
@@ -45,7 +42,6 @@ CallbackReturn RrMotorController::on_configure(const State& state,
   }
 
   // Pre-compute distance per pulse (mm). Used by encoder_cb_ to derive velocity:
-  //   velocity (m/s) = (dpp_ * 1000) / avg_us
   dpp_ = (2 * M_PI * wheel_radius_) / ppr_;
 
   // Configure motor hardware. On failure the GPIO plugin is not rolled back here;
@@ -98,17 +94,14 @@ CallbackReturn RrMotorController::on_activate(const State& state)
 
   // Duty convertor strategy — currently linear regression, swappable to PID.
   duty_conv_ = std::make_shared<rr_motor_controller::DutyConvertorLinearRegression>();
-
-  // Give a one second delay to allow running to be set to true.
   running_.store(true, std::memory_order_release);
-  sleep(1);
 
   pid_timer_ = std::thread(&RrMotorController::pid_cb_, this);
   sched_param sch{};
   sch.sched_priority = 80;
   if (pthread_setschedparam(pid_timer_.native_handle(), SCHED_FIFO, &sch) != 0)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Failed to create PID timer!!");
+    RCLCPP_ERROR(node_->get_logger(), "Realtime scheduling failed for PID timer!!");
   }
 
   return CallbackReturn::SUCCESS;
@@ -120,7 +113,15 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
   // the resources they reference.
   running_.store(false, std::memory_order_release);
 
-  publisher_->on_deactivate();
+  if (publisher_ != nullptr)
+  {
+    publisher_->on_deactivate();
+  }
+
+  if (subscription_ != nullptr)
+  {
+    subscription_ = nullptr;
+  }
 
   // Deactivate hardware — continue through failures to ensure both are attempted.
   CallbackReturn rv = CallbackReturn::SUCCESS;
@@ -159,8 +160,8 @@ CallbackReturn RrMotorController::on_cleanup(const State& state)
   return CallbackReturn::SUCCESS;
 }
 
-// This mehthod will significantly change, it will no longer be a subscription service.
-// or get a interface request, more than likely it will get ran in some sort of looop
+// This method will significantly change, it will no longer be a subscription service.
+// or get an interface request, more than likely it will get ran in some sort of loop
 // possibly with hardware clock.
 void RrMotorController::process_cmd(const rr_interfaces::msg::Motors& req)
 {
@@ -180,15 +181,16 @@ void RrMotorController::process_cmd(const rr_interfaces::msg::Motors& req)
   }
 }
 
-//
 void RrMotorController::pid_cb_()
 {
   bool running = running_.load(std::memory_order_acquire);
-  struct itimerspec ts {};
-  ts.it_value.tv_sec     = 0;
-  ts.it_value.tv_nsec    = PID_TIMER_DELTA;
-  ts.it_interval.tv_sec  = 0;
-  ts.it_interval.tv_nsec = PID_TIMER_DELTA;
+  struct itimerspec ts
+  {
+  };
+  ts.it_value.tv_sec = 0;
+  ts.it_value.tv_nsec = PID_TIMER_DELTA * 1'000'000;
+  ts.it_interval.tv_sec = 0;
+  ts.it_interval.tv_nsec = PID_TIMER_DELTA * 1'000'000;
 
   auto timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
   if (timer_fd < 0)
@@ -226,9 +228,10 @@ void RrMotorController::pid_cb_()
     motor_.set_pwm(duty);
 
     // only change direction if it is different, this could create some instability.
-    if (motor_.get_direction() != direction_.load())
+    bool dir = static_cast<bool>(direction_.load());
+    if (motor_.get_direction() != dir)
     {
-      motor_.set_direction(direction_.load());
+      motor_.set_direction(dir);
     }
 
     running = running_.load(std::memory_order_acquire);
@@ -274,6 +277,8 @@ void RrMotorController::encoder_cb_(const int gpio_pin, const uint32_t delta_us,
 
       if (accum > 0 && ct > 0)
       {
+        // Note that each motor controller is its own thread, therefore dpp_ and friends,
+        // can not be overwritten by antyhing outside of the thread.
         double avg_us = static_cast<double>(accum) / static_cast<double>(ct);
         double new_vel = (dpp_ * 1000.0) / avg_us;
         double current_vel = velocity_.load(std::memory_order_acquire);
