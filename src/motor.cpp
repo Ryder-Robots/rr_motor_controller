@@ -24,20 +24,19 @@ using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 
 namespace rr_motor_controller
 {
-CallbackReturn Motor::configure(
-  const rclcpp_lifecycle::State & previous_state,
-  rclcpp_lifecycle::LifecycleNode::SharedPtr node,
-  std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin)
+CallbackReturn Motor::configure(const rclcpp_lifecycle::State& previous_state,
+                                rclcpp_lifecycle::LifecycleNode::SharedPtr node,
+                                std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin, int mpos)
 {
   (void)previous_state;
   RCLCPP_INFO(rclcpp::get_logger("Motor"), "Configuring motor...");
-  if (!(gpio_plugin && node)) {
+  if (!(gpio_plugin && node))
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "missing node or GPIO plugin");
     return CallbackReturn::FAILURE;
   }
 
-  if (!(node->get_parameter("pwm_pin", pwm_pin_) && node->get_parameter("dir_pin", dir_pin_) &&
-    node->get_parameter("pwm_freq", freq_)))
+  if (!(node->has_parameter("pwm_pins") && node->has_parameter("dir_pins") && node->get_parameter("pwm_freq", freq_)))
   {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to get parameters for motor configuration");
     return CallbackReturn::FAILURE;
@@ -45,15 +44,19 @@ CallbackReturn Motor::configure(
 
   gpio_plugin_ = gpio_plugin;
   node_ = node;
+  pwm_pin_ = node->get_parameter("pwm_pins").as_integer_array().at(mpos);
+  dir_pin_ = node->get_parameter("dir_pins").as_integer_array().at(mpos);
 
   // verify parameters are within acceptable ranges.
-  const auto & pwm_pins = gpio_plugin->get_pwm_pins();
-  if (std::find(pwm_pins.begin(), pwm_pins.end(), pwm_pin_) == pwm_pins.end()) {
+  const auto& pwm_pins = gpio_plugin->get_pwm_pins();
+  if (std::find(pwm_pins.begin(), pwm_pins.end(), pwm_pin_) == pwm_pins.end())
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Invalid PWM pin %d", pwm_pin_);
     return CallbackReturn::FAILURE;
   }
 
-  if (dir_pin_ == pwm_pin_) {
+  if (dir_pin_ == pwm_pin_)
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "direction pin and PWM can not be both %d", pwm_pin_);
     return CallbackReturn::FAILURE;
   }
@@ -61,27 +64,31 @@ CallbackReturn Motor::configure(
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn Motor::on_activate(const rclcpp_lifecycle::State & previous_state)
+CallbackReturn Motor::on_activate(const rclcpp_lifecycle::State& previous_state)
 {
   (void)previous_state;
   RCLCPP_INFO(rclcpp::get_logger("Motor"), "Activating motor...");
 
-  if (gpio_plugin_->set_pin_mode(dir_pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_OUTPUT) != OK) {
+  if (gpio_plugin_->set_pin_mode(dir_pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_OUTPUT) != OK)
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to set direction pin mode");
     return CallbackReturn::FAILURE;
   }
 
-  if (gpio_plugin_->set_pin_mode(pwm_pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_ALT5) != OK) {
+  if (gpio_plugin_->set_pin_mode(pwm_pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_ALT5) != OK)
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to set pwm pin mode");
     return CallbackReturn::FAILURE;
   }
 
-  if (set_direction(FORWARD) != OK) {
+  if (set_direction(FORWARD) != OK)
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to set initial direction");
     return CallbackReturn::FAILURE;
   }
 
-  if (set_pwm(0) != OK) {
+  if (set_pwm(0) != OK)
+  {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to set initial pwm");
     return CallbackReturn::FAILURE;
   }
@@ -109,16 +116,18 @@ int Motor::get_direction() const noexcept
   return gpio_plugin_->digital_read(dir_pin_);
 }
 
-CallbackReturn Motor::on_deactivate(const rclcpp_lifecycle::State & previous_state)
+CallbackReturn Motor::on_deactivate(const rclcpp_lifecycle::State& previous_state)
 {
   (void)previous_state;
   RCLCPP_INFO(rclcpp::get_logger("Motor"), "Deactivating motor...");
   CallbackReturn exit_res = CallbackReturn::SUCCESS;
-  if (set_pwm(0) != OK) {
+  if (set_pwm(0) != OK)
+  {
     exit_res = CallbackReturn::FAILURE;
   }
 
-  if (set_direction(FORWARD) != OK) {
+  if (set_direction(FORWARD) != OK)
+  {
     exit_res = CallbackReturn::FAILURE;
   }
 

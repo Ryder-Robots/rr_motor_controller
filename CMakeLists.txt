@@ -15,12 +15,17 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 add_library(rr_motor_controller 
   src/rr_motor_controller.cpp
   src/dc_linear.cpp
   src/motor.cpp
-  src/encoder.cpp)
+  src/encoder.cpp
+  src/rr_motor_ecu_node.cpp
+  src/differential.cpp)
 add_library(rr_motor_controller::rr_motor_controller ALIAS rr_motor_controller)
 target_compile_features(rr_motor_controller PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 target_include_directories(rr_motor_controller PUBLIC
@@ -35,6 +40,9 @@ target_link_libraries(
   ${rclcpp_components_TARGETS}
   ${rclcpp_action_TARGETS}
   ${pluginlib_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${tf2_TARGETS}
+  ${tf2_geometry_msgs_TARGETS}
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
@@ -97,11 +105,18 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
   target_link_libraries(test_rr_motor_controller rr_motor_controller)
+
+  # Add DifferentialCmdProc unit tests
+  ament_add_gtest(test_differential test/test_differential.cpp)
+  target_include_directories(test_differential PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+  target_link_libraries(test_differential rr_motor_controller)
 endif()
 
 
 rclcpp_components_register_nodes(rr_motor_controller
-  "rr_motor_controller::RrMotorController"
+  "rr_motor_controller::RrECU"
 )
 
 ament_export_include_directories(

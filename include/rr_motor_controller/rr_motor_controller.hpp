@@ -22,7 +22,6 @@
 // identified by motor_pos_ within the Motors message array.
 //
 // Control loop:
-//   subscribe_callback_ sets target_velocity_ from incoming Motors messages.
 //   encoder_cb_ measures actual velocity_ from encoder pulse timing (called per interrupt).
 //   pid_cb_ runs on a wall timer, computes duty from target vs actual, and sets PWM.
 //
@@ -31,7 +30,8 @@
 #pragma once
 #include <string>
 #include <cmath>
-#include <pluginlib/class_loader.hpp>
+#include <pthread.h>
+#include <sys/timerfd.h>
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rr_motor_controller/visibility_control.h"
@@ -44,58 +44,49 @@
 #include "rr_interfaces/msg/motors.hpp"
 #include "rr_common_base/rr_constants.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
+#include "rr_motor_controller/rr_motor_controller_common.hpp"
 
 namespace rr_motor_controller
 {
 
-class RrMotorController : public rclcpp_lifecycle::LifecycleNode
+class RrMotorController
 {
   using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
   using State = rclcpp_lifecycle::State;
   using RRGPIOInterface = rrobots::interfaces::RRGPIOInterface;
 
 public:
-  explicit RrMotorController(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("MotorController", options)
+  RrMotorController()
   {
-    // set up paramters.
-    declare_parameter("motor_pos", 0);
-    declare_parameter("ppr", 8);
-    declare_parameter("wheel_radius", 20);
-    declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
-
-    // encoder parameters
-    declare_parameter("encoder_pin", 0);
-    declare_parameter("encoder_timeout", 0);
-
-    // motor parameters
-    declare_parameter("pwm_pin", -1);
-    declare_parameter("dir_pin", -1);
-
-    // This should be reasonable and probally does not need changing,  but available just in case.
-    declare_parameter("pwm_freq", 2000);
   }
 
-  virtual ~RrMotorController() = default;
+  ~RrMotorController() = default;
 
   /**
    * @brief Loads parameters (motor_pos, ppr, wheel_radius), computes dpp_,
-   * initialises GPIO plugin, and configures motor and encoder hardware.
+   * associates GPIO plugin to encoder and motor, and configures motor and encoder hardware.
    */
-  CallbackReturn on_configure(const State& state) override;
+  CallbackReturn on_configure(const State& state, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node, int mpos,
+                              std::shared_ptr<RRGPIOInterface> gpio_plugin);
 
   /**
-   * @brief Activates motor and encoder, creates ROS subscription/publisher,
-   * instantiates duty convertor, and starts PID wall timer.
+   * @brief Activates motor and encoder.
    */
-  CallbackReturn on_activate(const State& state) override;
+  CallbackReturn on_activate(const State& state);
 
   /**
    * @brief Stops the control loop, releases ROS interfaces, and deactivates
    * encoder and motor hardware (in that order).
    */
-  CallbackReturn on_deactivate(const State& state) override;
+  CallbackReturn on_deactivate(const State& state);
 
-  CallbackReturn on_cleanup(const State& state) override;
+  CallbackReturn on_cleanup(const State& state);
+
+  /**
+   * @brief Subscription handler for Motors messages. Stores the requested
+   * target velocity and direction for the motor at motor_pos_.
+   */
+  void process_cmd(const MotorCommand req);
 
 protected:
   /**
@@ -106,17 +97,6 @@ protected:
   void encoder_cb_(const int gpio_pin, const uint32_t delta_us, const uint32_t tick, const TickStatus tick_status);
 
   /**
-   * @brief Publishes velocity and diagnostic counters to the ECU.
-   */
-  void publish_callback_();
-
-  /**
-   * @brief Subscription handler for Motors messages. Stores the requested
-   * target velocity and direction for the motor at motor_pos_.
-   */
-  void subscribe_callback_(const rr_interfaces::msg::Motors& req);
-
-  /**
    * @brief Wall timer callback. Computes duty cycle from target_velocity_
    * and velocity_ via the DutyConversion strategy, then applies it to the motor.
    */
@@ -124,7 +104,6 @@ protected:
 
 private:
   // -- Configuration (set during on_configure, immutable after) --
-  int motor_pos_ = -1;         // index into Motors message array for this controller
   int64_t wheel_radius_{ 0 };  // wheel radius in mm
   double dpp_{ 0 };            // distance per pulse in mm: (2 * pi * wheel_radius_) / ppr_
   int ppr_{ 8 };               // pulses per revolution from encoder
@@ -132,7 +111,6 @@ private:
   // -- Hardware --
   Motor motor_;
   MotorEncoder encoder_;
-  std::unique_ptr<pluginlib::ClassLoader<RRGPIOInterface>> poly_loader_{ nullptr };
   std::shared_ptr<rr_motor_controller::DutyConversion> duty_conv_;
   std::shared_ptr<RRGPIOInterface> gpio_plugin_;
   EncoderTickCallback tick_cb_{ nullptr };
@@ -156,14 +134,15 @@ private:
 
   // -- Constants --
   constexpr static int64_t PID_TIMER_DELTA{ 100 };  // PID timer period in ms
-  constexpr static double MIN_DELTA_US{ 300 };      // encoder timing lower bound (us)
-  constexpr static double MAX_DELTA_US{ 3000 };     // encoder timing upper bound (us)
+  constexpr static uint32_t MIN_DELTA_US{ 300 };    // encoder timing lower bound (us)
+  constexpr static uint32_t MAX_DELTA_US{ 3000 };   // encoder timing upper bound (us)
 
   // -- ROS interfaces (created in on_activate, released in on_deactivate) --
   rclcpp_lifecycle::LifecyclePublisher<rr_interfaces::msg::MotorResponse>::SharedPtr publisher_{ nullptr };
   rclcpp::Subscription<rr_interfaces::msg::Motors>::SharedPtr subscription_{ nullptr };
-  rclcpp::TimerBase::SharedPtr pid_timer_;
-  rclcpp::TimerBase::SharedPtr sub_timer_;
+  std::thread pid_timer_;
+
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };
 
 }  // namespace rr_motor_controller

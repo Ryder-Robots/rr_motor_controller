@@ -120,7 +120,7 @@ class EncoderTest : public ::testing::Test {
                                                         int min_interval = 100)
   {
     auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>(name);
-    node->declare_parameter("encoder_pin", pin);
+    node->declare_parameter("encoder_pins", std::vector<int64_t>{pin});
     node->declare_parameter("encoder_timeout", timeout);
     node->declare_parameter("encoder_min_interval_us", min_interval);
     return node;
@@ -138,7 +138,7 @@ class EncoderTest : public ::testing::Test {
   void configure_and_activate(const std::string& node_name = "test_encoder_node") {
     auto node = make_node(node_name);
     rclcpp_lifecycle::State prev_state;
-    auto cfg = encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+    auto cfg = encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
     ASSERT_EQ(cfg, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS);
     auto act = encoder_->on_activate(prev_state);
     ASSERT_EQ(act, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS);
@@ -158,7 +158,7 @@ using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 TEST_F(EncoderTest, ConfigureSuccess) {
   auto node = make_node("test_cfg_ok");
   rclcpp_lifecycle::State prev_state;
-  auto result = encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+  auto result = encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
   EXPECT_EQ(result, CallbackReturn::SUCCESS);
 }
 
@@ -166,14 +166,14 @@ TEST_F(EncoderTest, ConfigureFailsMissingParameters) {
   // Node without any encoder parameters declared
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_cfg_missing");
   rclcpp_lifecycle::State prev_state;
-  auto result = encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+  auto result = encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
   EXPECT_EQ(result, CallbackReturn::FAILURE);
 }
 
 TEST_F(EncoderTest, ConfigureFailsNullCallback) {
   auto node = make_node("test_cfg_null_cb");
   rclcpp_lifecycle::State prev_state;
-  auto result = encoder_->configure(prev_state, node, mock_gpio_, nullptr);
+  auto result = encoder_->configure(prev_state, node, mock_gpio_, nullptr, 0);
   EXPECT_EQ(result, CallbackReturn::FAILURE);
 }
 
@@ -186,7 +186,7 @@ TEST_F(EncoderTest, OnActivateSuccess) {
   mock_gpio_->tick_value = 5000;
 
   rclcpp_lifecycle::State prev_state;
-  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
 
   auto result = encoder_->on_activate(prev_state);
   EXPECT_EQ(result, CallbackReturn::SUCCESS);
@@ -212,7 +212,7 @@ TEST_F(EncoderTest, OnActivateFailsWithoutConfigure) {
 TEST_F(EncoderTest, OnActivateFailsSetPinMode) {
   auto node = make_node("test_act_pin_fail");
   rclcpp_lifecycle::State prev_state;
-  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
 
   mock_gpio_->set_pin_mode_result = -1;
   auto result = encoder_->on_activate(prev_state);
@@ -222,7 +222,7 @@ TEST_F(EncoderTest, OnActivateFailsSetPinMode) {
 TEST_F(EncoderTest, OnActivateFailsSetPullUpDown) {
   auto node = make_node("test_act_pud_fail");
   rclcpp_lifecycle::State prev_state;
-  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
 
   mock_gpio_->set_pull_up_down_result = -1;
   auto result = encoder_->on_activate(prev_state);
@@ -232,7 +232,7 @@ TEST_F(EncoderTest, OnActivateFailsSetPullUpDown) {
 TEST_F(EncoderTest, OnActivateFailsSetIsrFuncEx) {
   auto node = make_node("test_act_isr_fail");
   rclcpp_lifecycle::State prev_state;
-  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb());
+  encoder_->configure(prev_state, node, mock_gpio_, make_tick_cb(), 0);
 
   mock_gpio_->set_isr_func_ex_result = -1;
   auto result = encoder_->on_activate(prev_state);

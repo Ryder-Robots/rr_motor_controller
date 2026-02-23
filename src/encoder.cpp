@@ -27,22 +27,20 @@ namespace rr_motor_controller
 CallbackReturn MotorEncoder::configure(const rclcpp_lifecycle::State& previous_state,
                                        rclcpp_lifecycle::LifecycleNode::SharedPtr node,
                                        std::shared_ptr<rrobots::interfaces::RRGPIOInterface> gpio_plugin,
-                                       EncoderTickCallback tick_cb)
+                                       EncoderTickCallback tick_cb, int mpos)
 {
   (void)previous_state;
   RCLCPP_INFO(rclcpp::get_logger("MotorEncoder"), "Configuring encoder...");
 
   {
-    int64_t pin{ -1 };
-    int64_t timeout{ 0 };
-
-    if (!(node->get_parameter("encoder_pin", pin) && node->get_parameter("encoder_timeout", timeout)))
+    if (!(node->has_parameter("encoder_pins") && node->has_parameter("encoder_timeout")))
     {
       RCLCPP_ERROR(rclcpp::get_logger("MotorEncoder"), "pin, timeout, and min_interval are required parameters...");
       return CallbackReturn::FAILURE;
     }
-    pin_ = static_cast<int>(pin);
-    timeout_ = static_cast<int>(timeout);
+
+    pin_ = static_cast<int>(node->get_parameter("encoder_pins").as_integer_array().at(mpos));
+    timeout_ = node->get_parameter("encoder_timeout").as_int();
   }
 
   if (!tick_cb)

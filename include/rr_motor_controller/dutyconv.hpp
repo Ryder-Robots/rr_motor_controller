@@ -32,15 +32,15 @@ namespace rr_motor_controller
         public:
         /**
          * @fn compute
-         * @brief converts m/s to a duty cycle.
-         * @param setpoint expected velocity m/s
-         * @param measurement current velocity m/s
-         * @param dt time since last sample in milliseconds.
-         * @return duty cyle to achieve this
-         * 
-         * Note that for linear regression algorithms the mesurement and dt, is not needed
+         * @brief Converts m/s to a duty cycle.
+         * @param setpoint Expected velocity in m/s.
+         * @param measurement Current velocity in m/s.
+         * @param dt Time since last sample in milliseconds.
+         * @return Duty cycle to achieve the setpoint.
+         *
+         * Note that for linear regression algorithms the measurement and dt are not needed,
          * but should be included to allow a smooth conversion to PID algorithms once
-         * imperial evidence has been taken, and motor tolerence under load is known.
+         * empirical evidence has been taken, and motor tolerance under load is known.
          */
         virtual double compute(double setpoint, double measurement, int64_t dt) = 0;
     };
