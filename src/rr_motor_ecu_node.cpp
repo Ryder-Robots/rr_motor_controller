@@ -111,10 +111,16 @@ CallbackReturn RrECU::on_deactivate(const State& state)
   
   timer_->cancel();
   publisher_->on_deactivate();
-  if (motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state) != CallbackReturn::SUCCESS ||
-      motors_[DifferentialCmdProc::DD_RIGHT].on_deactivate(state) != CallbackReturn::SUCCESS)
+  subscription_.reset();
+  if (motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state) != CallbackReturn::SUCCESS)
   {
     rv = CallbackReturn::FAILURE;
+    RCLCPP_ERROR(get_logger(), "Motor Left plugin not terminated correctly!!!");
+  }
+  if (motors_[DifferentialCmdProc::DD_RIGHT].on_deactivate(state) != CallbackReturn::SUCCESS)
+  {
+    rv = CallbackReturn::FAILURE;
+    RCLCPP_ERROR(get_logger(), "Motor Right plugin not terminated correctly!!!");
   }
   if (gpio_plugin_->on_deactivate(state) != CallbackReturn::SUCCESS)
   {
@@ -129,7 +135,6 @@ CallbackReturn RrECU::on_cleanup(const State& state)
   (void)state;
   RCLCPP_INFO(this->get_logger(), "Cleaning up motor ECU...");
 
-  timer_->clear_on_reset_callback();
   timer_.reset();
   gpio_plugin_.reset();
   mt_cmd_proc_.reset();

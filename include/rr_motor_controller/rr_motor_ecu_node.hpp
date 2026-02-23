@@ -41,7 +41,7 @@ namespace rr_motor_controller
 {
 /**
  * @class RrECU
- * @brief Electronic Control Unit for Ryder Robots motor subsystem (NOT YET IMPLEMENTED).
+ * @brief Electronic Control Unit for Ryder Robots motor subsystem.
  *
  * Intended to coordinate multiple RrMotorController instances by accepting
  * high-level velocity commands and dispatching them to individual motors
@@ -52,7 +52,6 @@ namespace rr_motor_controller
  *   1 — RIGHT
  *
  * @note Currently only a 2-motor differential drive layout is planned.
- * @note This class is a draft header — no implementation (.cpp) exists yet.
  */
 class RrECU : public rclcpp_lifecycle::LifecycleNode
 {
@@ -79,7 +78,7 @@ public:
     declare_parameter("ppr", 8);            // pulses per revolution (shared across motors)
     declare_parameter("wheel_radius", 20);  // wheel radius in mm (assumed uniform)
     declare_parameter("wheel_base", 74);    // distance between left and right side wheels in mm
-    declare_parameter("ttl_ns", 0);         // time to live, the expiry of each command recieved in subscription.
+    declare_parameter("ttl_ns", 200'000'000);      // time to live, the expiry of each command recieved in subscription.
     declare_parameter("covariance", std::vector<double>());  // adjustments for noise with six degrees of freedom (x, y,
                                                              // z, roll, pitch, and yaw)
     declare_parameter("pwm_freq", 2000);
@@ -103,10 +102,16 @@ protected:
   /**
    * @brief Subscription callback for geometry_msgs::msg::Twist.
    *
-   * Converts linear/angular velocity into per-motor commands and
-   * enqueues them into command_queue_ for processing.
+   * Converts linear/angular velocity into per-motor commands.
    */
   void subscribe_callback_(const geometry_msgs::msg::Twist& req);
+
+  /**
+   * @brief Publish callback for nav_msgs::msg::Odometry.
+   * 
+   * Publishes linear/angular velocity, postulate x,y, z and 
+   * covariance.
+   */
   void publish_callback_();
 
 private:
