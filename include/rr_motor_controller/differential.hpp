@@ -77,7 +77,7 @@ public:
   std::array<MotorCommand, 2> proc_twist(geometry_msgs::msg::Twist msg) override;
 
   /** @copydoc MotorCmdProc::proc_odom */
-  nav_msgs::msg::Odometry proc_odom(const std::array<MotorCommand, 2>) override;
+  nav_msgs::msg::Odometry proc_odom() override;
 
   /** Index of the left motor within command_history_ and integrated_distance_. */
   static constexpr int DD_LEFT = 0;

@@ -88,7 +88,7 @@ protected:
   // Simulate one ECU timer cycle: proc_odom drives update() internally.
   nav_msgs::msg::Odometry odom_tick()
   {
-    return diff_->proc_odom({});
+    return diff_->proc_odom();
   }
 
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
@@ -120,7 +120,7 @@ TEST(DifferentialCmdProcGuardTest, UnconfiguredProcOdomReturnsDefaultOdom)
     std::make_shared<rclcpp_lifecycle::LifecycleNode>("guard_node2");
 
   DifferentialCmdProc diff;
-  auto odom = diff.proc_odom({});
+  auto odom = diff.proc_odom();
   EXPECT_DOUBLE_EQ(odom.pose.pose.position.x, 0.0);
   EXPECT_DOUBLE_EQ(odom.pose.pose.position.y, 0.0);
   EXPECT_TRUE(odom.header.frame_id.empty());

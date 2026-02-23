@@ -64,9 +64,8 @@ namespace rr_motor_controller {
 
         /**
          * @brief Compute odometry from motor command feedback.
-         * @param commands Current motor command state for each motor.
          * @return Odometry message representing the robot's estimated pose and velocity.
          */
-        virtual nav_msgs::msg::Odometry proc_odom(const std::array<MotorCommand, 2>) = 0;
+        virtual nav_msgs::msg::Odometry proc_odom() = 0;
     };
 }

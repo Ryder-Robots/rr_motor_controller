@@ -57,12 +57,10 @@ CallbackReturn RrECU::on_configure(const State& state)
   mt_cmd_proc_->on_configure(this->shared_from_this());
 
   // Configure motors
-  if (
-    motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT,
+  if (motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT,
                                                          gpio_plugin_) != CallbackReturn::SUCCESS ||
-    motors_[DifferentialCmdProc::DD_RIGHT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_RIGHT, 
-        gpio_plugin_) != CallbackReturn::SUCCESS
-  )
+      motors_[DifferentialCmdProc::DD_RIGHT].on_configure(
+          state, this->shared_from_this(), DifferentialCmdProc::DD_RIGHT, gpio_plugin_) != CallbackReturn::SUCCESS)
   {
     return CallbackReturn::FAILURE;
   }
@@ -77,15 +75,20 @@ CallbackReturn RrECU::on_activate(const State& state)
     RCLCPP_FATAL(get_logger(), "failed to activate gpio plugin");
     return CallbackReturn::FAILURE;
   }
-  for (size_t i = 0; i < motors_.size(); i++)
+
+  if (motors_[DifferentialCmdProc::DD_LEFT].on_activate(state) != CallbackReturn::SUCCESS)
   {
-    // TODO: activate callbacks and timers for motor_controllers
-    if (motors_[i].on_activate(state) != CallbackReturn::SUCCESS)
-    {
-      RCLCPP_FATAL(get_logger(), "failed to activate motor(s)");
-      motors_[i].on_deactivate(state);
-      return CallbackReturn::FAILURE;
-    }
+    motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state);
+    RCLCPP_FATAL(get_logger(), "failed to activate motor(s)");
+    return CallbackReturn::FAILURE;
+  }
+
+  if (motors_[DifferentialCmdProc::DD_RIGHT].on_activate(state) != CallbackReturn::SUCCESS)
+  {
+    motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state);
+    motors_[DifferentialCmdProc::DD_RIGHT].on_deactivate(state);
+    RCLCPP_FATAL(get_logger(), "failed to activate motor(s)");
+    return CallbackReturn::FAILURE;
   }
 
   rclcpp::SubscriptionOptions options;
@@ -103,6 +106,8 @@ CallbackReturn RrECU::on_activate(const State& state)
 CallbackReturn RrECU::on_deactivate(const State& state)
 {
   CallbackReturn rv = CallbackReturn::SUCCESS;
+  
+  timer_->cancel();
   publisher_->on_deactivate();
   if (motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state) != CallbackReturn::SUCCESS ||
       motors_[DifferentialCmdProc::DD_RIGHT].on_deactivate(state) != CallbackReturn::SUCCESS)
@@ -122,6 +127,8 @@ CallbackReturn RrECU::on_cleanup(const State& state)
   (void)state;
   RCLCPP_INFO(this->get_logger(), "Cleaning up motor ECU...");
 
+  timer_->clear_on_reset_callback();
+  timer_.reset();
   gpio_plugin_.reset();
   mt_cmd_proc_.reset();
   poly_loader_.reset();
@@ -131,13 +138,6 @@ CallbackReturn RrECU::on_cleanup(const State& state)
   return CallbackReturn::SUCCESS;
 }
 
-// TODO this methoids need to fixed. They will convert the inbound
-// data into something that can be used for both motors.
-// Assume that the robot will be differential for the moment
-// future versions should allow for different typs of drive.
-//
-// Note that this should execute quickly it only updates velocity
-// it does not perfortm any more processing that it needs.
 void RrECU::subscribe_callback_(const geometry_msgs::msg::Twist& req)
 {
   std::array<MotorCommand, 2> cmds;
@@ -156,7 +156,7 @@ void RrECU::subscribe_callback_(const geometry_msgs::msg::Twist& req)
 void RrECU::publish_callback_()
 {
   std::lock_guard<std::mutex> lock(motor_mutex_);
-  publisher_->publish(mt_cmd_proc_->proc_odom(motor_cmds_));
+  publisher_->publish(mt_cmd_proc_->proc_odom());
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(rr_motor_controller::RrECU)

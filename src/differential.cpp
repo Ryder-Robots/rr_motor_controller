@@ -137,7 +137,7 @@ std::array<MotorCommand,2 > DifferentialCmdProc::proc_twist(geometry_msgs::msg::
   return cmd;
 }
 
-nav_msgs::msg::Odometry DifferentialCmdProc::proc_odom(const std::array<MotorCommand, 2>)
+nav_msgs::msg::Odometry DifferentialCmdProc::proc_odom()
 {
   nav_msgs::msg::Odometry odom;
   if (!is_configured)
