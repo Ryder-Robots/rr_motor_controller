@@ -82,6 +82,7 @@ public:
     declare_parameter("ttl_ns", 0);         // time to live, the expiry of each command recieved in subscription.
     declare_parameter("covariance", std::vector<double>());  // adjustments for noise with six degrees of freedom (x, y,
                                                              // z, roll, pitch, and yaw)
+    declare_parameter("pwm_freq", 2000);
 
     // Board-specific GPIO transport plugin (pluginlib class name).
     declare_parameter("transport_plugin", "rrobots::interfaces::RRGPIOInterface");
@@ -121,7 +122,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_{ nullptr };  ///< Twist command input.
   rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Odometry>::SharedPtr publisher_{ nullptr };  ///< Aggregated motor
                                                                                                    ///< status output.
-
+  rclcpp::TimerBase::SharedPtr timer_;
   std::mutex motor_mutex_;
 };
 

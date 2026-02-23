@@ -34,12 +34,11 @@ CallbackReturn RrMotorController::on_configure(const State& state,
   RCLCPP_INFO(node->get_logger(), "Configuring motor controller...");
   gpio_plugin_ = gpio_plugin;
   // Parameters are loaded first — a failure here leaves no hardware state to unwind.
-  if (!(node->get_parameter("motor_pos", motor_pos_) && node->get_parameter("ppr", ppr_) &&
-        node->get_parameter("wheel_radius", wheel_radius_)))
-  {
-    RCLCPP_ERROR(node->get_logger(), "Failed to get parameters for motor configuration");
-    return CallbackReturn::FAILURE;
-  }
+  if (!(node->get_parameter("ppr", ppr_) && node->get_parameter("wheel_radius", wheel_radius_)))
+    {
+      RCLCPP_ERROR(node->get_logger(), "Failed to get parameters for motor configuration");
+      return CallbackReturn::FAILURE;
+    }
 
   // Pre-compute distance per pulse (mm). Used by encoder_cb_ to derive velocity:
   dpp_ = (2 * M_PI * wheel_radius_) / ppr_;
@@ -170,7 +169,8 @@ void RrMotorController::process_cmd(const MotorCommand req)
   }
 
   uint64_t now = node_->now().nanoseconds();
-  if (now >= req.ttl_ns) {
+  if (now >= req.ttl_ns)
+  {
     return;
   }
 

@@ -120,7 +120,7 @@ class EncoderTest : public ::testing::Test {
                                                         int min_interval = 100)
   {
     auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>(name);
-    node->declare_parameter("encoder_pin", std::vector<int64_t>{pin});
+    node->declare_parameter("encoder_pins", std::vector<int64_t>{pin});
     node->declare_parameter("encoder_timeout", std::vector<int64_t>{timeout});
     node->declare_parameter("encoder_min_interval_us", min_interval);
     return node;

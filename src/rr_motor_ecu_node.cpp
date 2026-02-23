@@ -57,10 +57,15 @@ CallbackReturn RrECU::on_configure(const State& state)
   mt_cmd_proc_->on_configure(this->shared_from_this());
 
   // Configure motors
-  motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT,
-                                                     gpio_plugin_);
-  motors_[DifferentialCmdProc::DD_RIGHT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_RIGHT,
-                                                      gpio_plugin_);
+  if (
+    motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT,
+                                                         gpio_plugin_) != CallbackReturn::SUCCESS ||
+    motors_[DifferentialCmdProc::DD_RIGHT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_RIGHT, 
+        gpio_plugin_) != CallbackReturn::SUCCESS
+  )
+  {
+    return CallbackReturn::FAILURE;
+  }
 
   return CallbackReturn::SUCCESS;
 }
@@ -83,14 +88,22 @@ CallbackReturn RrECU::on_activate(const State& state)
     }
   }
 
-  // TODO: create wall timers for internal subscription, these do not have to
-  // be deterministic, so wall_timer is fine.
+  rclcpp::SubscriptionOptions options;
+  auto topic_callback = std::bind(&RrECU::subscribe_callback_, this, std::placeholders::_1);
+  subscription_ =
+      create_subscription<geometry_msgs::msg::Twist>("/cmd_vel", rclcpp::SensorDataQoS(), topic_callback, options);
+  publisher_ = create_publisher<nav_msgs::msg::Odometry>("/odom", 10);
+  auto publish_callback = std::bind(&RrECU::publish_callback_, this);
+  timer_ = create_wall_timer(std::chrono::milliseconds(250), publish_callback);
+  publisher_->on_activate();
+
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn RrECU::on_deactivate(const State& state)
 {
   CallbackReturn rv = CallbackReturn::SUCCESS;
+  publisher_->on_deactivate();
   if (motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state) != CallbackReturn::SUCCESS ||
       motors_[DifferentialCmdProc::DD_RIGHT].on_deactivate(state) != CallbackReturn::SUCCESS)
   {
@@ -132,15 +145,9 @@ void RrECU::subscribe_callback_(const geometry_msgs::msg::Twist& req)
   {
     std::lock_guard<std::mutex> lock(motor_mutex_);
     cmds = mt_cmd_proc_->proc_twist(req);
+    motors_[DifferentialCmdProc::DD_LEFT].process_cmd(cmds[DifferentialCmdProc::DD_LEFT]);
+    motors_[DifferentialCmdProc::DD_RIGHT].process_cmd(cmds[DifferentialCmdProc::DD_RIGHT]);
   }
-
-  // set TTL
-  auto ttl = now().nanoseconds() + 100'000'000;  // 100 ms
-  cmds[DifferentialCmdProc::DD_LEFT].ttl_ns = ttl;
-  cmds[DifferentialCmdProc::DD_RIGHT].ttl_ns = ttl;
-
-  motors_[DifferentialCmdProc::DD_LEFT].process_cmd(cmds[DifferentialCmdProc::DD_LEFT]);
-  motors_[DifferentialCmdProc::DD_RIGHT].process_cmd(cmds[DifferentialCmdProc::DD_RIGHT]);
 
   motor_cmds_[DifferentialCmdProc::DD_LEFT] = cmds[DifferentialCmdProc::DD_LEFT];
   motor_cmds_[DifferentialCmdProc::DD_RIGHT] = cmds[DifferentialCmdProc::DD_RIGHT];

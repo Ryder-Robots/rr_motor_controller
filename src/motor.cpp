@@ -36,7 +36,7 @@ CallbackReturn Motor::configure(const rclcpp_lifecycle::State& previous_state,
     return CallbackReturn::FAILURE;
   }
 
-  if (!(node->has_parameter("pwm_pin") && node->has_parameter("dir_pin") && node->get_parameter("pwm_freq", freq_)))
+  if (!(node->has_parameter("pwm_pins") && node->has_parameter("dir_pins") && node->get_parameter("pwm_freq", freq_)))
   {
     RCLCPP_ERROR(rclcpp::get_logger("Motor"), "Failed to get parameters for motor configuration");
     return CallbackReturn::FAILURE;
@@ -44,8 +44,8 @@ CallbackReturn Motor::configure(const rclcpp_lifecycle::State& previous_state,
 
   gpio_plugin_ = gpio_plugin;
   node_ = node;
-  pwm_pin_ = node->get_parameter("pwm_pin").as_integer_array().at(mpos);
-  dir_pin_ = node->get_parameter("dir_pin").as_integer_array().at(mpos);
+  pwm_pin_ = node->get_parameter("pwm_pins").as_integer_array().at(mpos);
+  dir_pin_ = node->get_parameter("dir_pins").as_integer_array().at(mpos);
 
   // verify parameters are within acceptable ranges.
   const auto& pwm_pins = gpio_plugin->get_pwm_pins();

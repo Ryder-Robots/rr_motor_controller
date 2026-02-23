@@ -62,7 +62,6 @@ class RrMotorControllerTest : public ::testing::Test {
     ctrl_->ppr_ = ppr;
     ctrl_->wheel_radius_ = wheel_radius;
     ctrl_->dpp_ = (2.0 * M_PI * wheel_radius) / ppr;
-    ctrl_->motor_pos_ = 0;
     ctrl_->running_.store(true, std::memory_order_release);
   }
 

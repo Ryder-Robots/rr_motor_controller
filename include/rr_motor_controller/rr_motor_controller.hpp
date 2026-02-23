@@ -104,7 +104,6 @@ protected:
 
 private:
   // -- Configuration (set during on_configure, immutable after) --
-  int motor_pos_ = -1;         // index into Motors message array for this controller
   int64_t wheel_radius_{ 0 };  // wheel radius in mm
   double dpp_{ 0 };            // distance per pulse in mm: (2 * pi * wheel_radius_) / ppr_
   int ppr_{ 8 };               // pulses per revolution from encoder
