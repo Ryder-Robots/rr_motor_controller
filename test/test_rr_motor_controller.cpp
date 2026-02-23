@@ -25,17 +25,17 @@
 // Include standard/ROS headers first (before visibility workaround)
 #include <string>
 #include <atomic>
+#include <climits>
 #include <pluginlib/class_loader.hpp>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "rr_interfaces/msg/motors.hpp"
-#include "rr_interfaces/msg/motor_response.hpp"
 #include "rr_common_base/rr_gpio_plugin_iface.hpp"
 #include "rr_common_base/rr_constants.hpp"
 #include "rr_motor_controller/motor.hpp"
 #include "rr_motor_controller/encoder.hpp"
 #include "rr_motor_controller/dutyconv.hpp"
 #include "rr_motor_controller/dc_linear.hpp"
+#include "rr_motor_controller/rr_motor_controller_common.hpp"
 
 // Test-only visibility workaround — allows direct access to private members
 // for verifying internal state in unit tests. Scoped to this file only.
@@ -214,58 +214,51 @@ TEST_F(RrMotorControllerTest, EncoderCbMixedHealthyAndUnhealthyPulses) {
 }
 
 // ---------------------------------------------------------------------------
-// subscribe_callback_
+// process_cmd
 // ---------------------------------------------------------------------------
 
-TEST_F(RrMotorControllerTest, SubscribeCallbackStoresVelocityAndDirection) {
+TEST_F(RrMotorControllerTest, ProcessCmdStoresVelocityAndDirection) {
   configure_for_test();
-  ctrl_->motor_pos_ = 0;
 
-  rr_interfaces::msg::Motors msg;
-  rr_interfaces::msg::Motor motor_entry;
-  motor_entry.velocity = 42;
-  motor_entry.direction = false;  // BACKWARD
-  msg.motors.push_back(motor_entry);
+  rr_motor_controller::MotorCommand cmd{};
+  cmd.velocity = 42.0f;
+  cmd.direction = static_cast<int8_t>(rr_motor_controller::Motor::BACKWARD);
+  cmd.ttl_ns = UINT64_MAX;  // far future: now >= UINT64_MAX is false → command processed
 
-  ctrl_->process_cmd(msg);
+  ctrl_->process_cmd(cmd);
 
   EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 42.0);
-  EXPECT_EQ(ctrl_->direction_.load(), 0);  // false = BACKWARD = 0
+  EXPECT_EQ(ctrl_->direction_.load(), rr_motor_controller::Motor::BACKWARD);
 }
 
-TEST_F(RrMotorControllerTest, SubscribeCallbackUsesMotorPos) {
+// process_cmd discards commands when now >= ttl_ns (command has expired).
+TEST_F(RrMotorControllerTest, ProcessCmdDiscardedWhenExpired) {
   configure_for_test();
-  ctrl_->motor_pos_ = 1;
-
-  rr_interfaces::msg::Motors msg;
-  rr_interfaces::msg::Motor m0, m1;
-  m0.velocity = 10;
-  m0.direction = true;
-  m1.velocity = 77;
-  m1.direction = false;
-  msg.motors.push_back(m0);
-  msg.motors.push_back(m1);
-
-  ctrl_->process_cmd(msg);
-
-  EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 77.0);
-  EXPECT_EQ(ctrl_->direction_.load(), 0);
-}
-
-TEST_F(RrMotorControllerTest, SubscribeCallbackIgnoresShortMessage) {
-  configure_for_test();
-  ctrl_->motor_pos_ = 2;
   ctrl_->target_velocity_.store(99.0, std::memory_order_release);
 
-  rr_interfaces::msg::Motors msg;
-  rr_interfaces::msg::Motor m0;
-  m0.velocity = 10;
-  msg.motors.push_back(m0);  // only 1 entry, motor_pos_ = 2
+  rr_motor_controller::MotorCommand cmd{};
+  cmd.velocity = 42.0f;
+  cmd.direction = static_cast<int8_t>(rr_motor_controller::Motor::FORWARD);
+  cmd.ttl_ns = 0;  // already expired: now >= 0 is always true → discarded
 
-  ctrl_->process_cmd(msg);
+  ctrl_->process_cmd(cmd);
 
-  // target_velocity_ should be unchanged
-  EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 99.0);
+  EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 99.0);  // unchanged
+}
+
+TEST_F(RrMotorControllerTest, ProcessCmdIgnoredWhenNotRunning) {
+  configure_for_test();
+  ctrl_->running_.store(false, std::memory_order_release);
+  ctrl_->target_velocity_.store(99.0, std::memory_order_release);
+
+  rr_motor_controller::MotorCommand cmd{};
+  cmd.velocity = 42.0f;
+  cmd.direction = static_cast<int8_t>(rr_motor_controller::Motor::FORWARD);
+  cmd.ttl_ns = UINT64_MAX;  // valid TTL — ensures running_ gate is what rejects this
+
+  ctrl_->process_cmd(cmd);
+
+  EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 99.0);  // unchanged
 }
 
 // ---------------------------------------------------------------------------

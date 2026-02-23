@@ -127,8 +127,18 @@ CallbackReturn RrECU::on_cleanup(const State& state)
 // it does not perfortm any more processing that it needs.
 void RrECU::subscribe_callback_(const geometry_msgs::msg::Twist& req)
 {
-  std::lock_guard<std::mutex> lock(motor_mutex_);
-  std::array<MotorCommand, 2> cmds = mt_cmd_proc_->proc_twist(req);
+  std::array<MotorCommand, 2> cmds;
+
+  {
+    std::lock_guard<std::mutex> lock(motor_mutex_);
+    cmds = mt_cmd_proc_->proc_twist(req);
+  }
+
+  // set TTL
+  auto ttl = now().nanoseconds() + 100'000'000;  // 100 ms
+  cmds[DifferentialCmdProc::DD_LEFT].ttl_ns = ttl;
+  cmds[DifferentialCmdProc::DD_RIGHT].ttl_ns = ttl;
+
   motors_[DifferentialCmdProc::DD_LEFT].process_cmd(cmds[DifferentialCmdProc::DD_LEFT]);
   motors_[DifferentialCmdProc::DD_RIGHT].process_cmd(cmds[DifferentialCmdProc::DD_RIGHT]);
 

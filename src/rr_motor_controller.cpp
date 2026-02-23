@@ -170,7 +170,7 @@ void RrMotorController::process_cmd(const MotorCommand req)
   }
 
   uint64_t now = node_->now().nanoseconds();
-  if (now < req.ttl_ns) {
+  if (now >= req.ttl_ns) {
     return;
   }
 

@@ -101,15 +101,17 @@ protected:
 // transition has completed.
 // ---------------------------------------------------------------------------
 
-TEST(DifferentialCmdProcGuardTest, UnconfiguredProcTwistReturnsEmpty)
+TEST(DifferentialCmdProcGuardTest, UnconfiguredProcTwistReturnsZeroCommands)
 {
   rclcpp_lifecycle::LifecycleNode::SharedPtr node =
     std::make_shared<rclcpp_lifecycle::LifecycleNode>("guard_node");
 
   DifferentialCmdProc diff;
   // Deliberately skip on_configure — is_configured stays false.
+  // proc_twist returns a zero-initialised array (not an empty container).
   auto cmds = diff.proc_twist(make_twist(1.0, 0.0));
-  EXPECT_TRUE(cmds.empty());
+  EXPECT_FLOAT_EQ(cmds[0].velocity, 0.0f);
+  EXPECT_FLOAT_EQ(cmds[1].velocity, 0.0f);
 }
 
 TEST(DifferentialCmdProcGuardTest, UnconfiguredProcOdomReturnsDefaultOdom)
