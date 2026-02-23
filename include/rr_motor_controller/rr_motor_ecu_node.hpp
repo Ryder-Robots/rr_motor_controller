@@ -34,8 +34,8 @@
 #include "rr_motor_controller/differential.hpp"
 
 #include <vector>
-#include <deque>
 #include <array>
+#include <mutex> 
 
 namespace rr_motor_controller
 {
@@ -112,6 +112,7 @@ private:
   // Motor controllers, one per physical motor. Indexed by motor position.
   // allocate memory to stack, since these will not change.
   std::array<RrMotorController, 2> motors_;
+  std::array<MotorCommand, 2> motor_cmds_;
 
   std::unique_ptr<MotorCmdProc> mt_cmd_proc_{ nullptr };
 
@@ -120,6 +121,8 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_{ nullptr };  ///< Twist command input.
   rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Odometry>::SharedPtr publisher_{ nullptr };  ///< Aggregated motor
                                                                                                    ///< status output.
+
+  std::mutex motor_mutex_;
 };
 
 }  // namespace rr_motor_controller

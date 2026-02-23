@@ -160,10 +160,7 @@ CallbackReturn RrMotorController::on_cleanup(const State& state)
   return CallbackReturn::SUCCESS;
 }
 
-// This method will significantly change, it will no longer be a subscription service.
-// or get an interface request, more than likely it will get ran in some sort of loop
-// possibly with hardware clock.
-void RrMotorController::process_cmd(const rr_interfaces::msg::Motors& req)
+void RrMotorController::process_cmd(const MotorCommand req)
 {
   RCLCPP_DEBUG(node_->get_logger(), "subscriber callback is getting called!");
 
@@ -172,13 +169,14 @@ void RrMotorController::process_cmd(const rr_interfaces::msg::Motors& req)
     return;
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "seeing if motor needs to be updated");
-  if (req.motors.size() > static_cast<std::size_t>(motor_pos_))
-  {
-    RCLCPP_DEBUG(node_->get_logger(), "attempting to update the motor");
-    target_velocity_.store(static_cast<double>(req.motors.at(motor_pos_).velocity), std::memory_order_release);
-    direction_.store(req.motors.at(motor_pos_).direction, std::memory_order_release);
+  uint64_t now = node_->now().nanoseconds();
+  if (now < req.ttl_ns) {
+    return;
   }
+
+  RCLCPP_DEBUG(node_->get_logger(), "seeing if motor needs to be updated");
+  target_velocity_.store(req.velocity, std::memory_order_release);
+  direction_.store(req.direction, std::memory_order_release);
 }
 
 void RrMotorController::pid_cb_()

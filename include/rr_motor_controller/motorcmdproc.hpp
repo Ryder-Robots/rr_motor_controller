@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 #pragma once
-#include <vector>
+#include <array>
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
 #include <geometry_msgs/msg/twist.hpp>
@@ -28,6 +28,10 @@
 /**
  * @file motorcmdproc.hpp
  * @brief Abstract interface for motor command processing.
+ * 
+ * CAVEAT: motor commands are currently use array of size 2, which is fine for
+ * differential motors, but may not work for different robot setups, and may need
+ * to be changed to vector. It definately will not work for more than two motors.
  */
 namespace rr_motor_controller {
 
@@ -56,13 +60,13 @@ namespace rr_motor_controller {
          * @param msg Desired linear and angular velocity.
          * @return Vector of MotorCommand, one per driven motor.
          */
-        virtual std::vector<MotorCommand> proc_twist(geometry_msgs::msg::Twist  msg) = 0;
+        virtual std::array<MotorCommand, 2> proc_twist(geometry_msgs::msg::Twist  msg) = 0;
 
         /**
          * @brief Compute odometry from motor command feedback.
          * @param commands Current motor command state for each motor.
          * @return Odometry message representing the robot's estimated pose and velocity.
          */
-        virtual nav_msgs::msg::Odometry proc_odom(const std::vector<MotorCommand>) = 0;
+        virtual nav_msgs::msg::Odometry proc_odom(const std::array<MotorCommand, 2>) = 0;
     };
 }

@@ -118,12 +118,28 @@ CallbackReturn RrECU::on_cleanup(const State& state)
   return CallbackReturn::SUCCESS;
 }
 
+// TODO this methoids need to fixed. They will convert the inbound
+// data into something that can be used for both motors.
+// Assume that the robot will be differential for the moment
+// future versions should allow for different typs of drive.
+//
+// Note that this should execute quickly it only updates velocity
+// it does not perfortm any more processing that it needs.
 void RrECU::subscribe_callback_(const geometry_msgs::msg::Twist& req)
 {
+  std::lock_guard<std::mutex> lock(motor_mutex_);
+  std::array<MotorCommand, 2> cmds = mt_cmd_proc_->proc_twist(req);
+  motors_[DifferentialCmdProc::DD_LEFT].process_cmd(cmds[DifferentialCmdProc::DD_LEFT]);
+  motors_[DifferentialCmdProc::DD_RIGHT].process_cmd(cmds[DifferentialCmdProc::DD_RIGHT]);
+
+  motor_cmds_[DifferentialCmdProc::DD_LEFT] = cmds[DifferentialCmdProc::DD_LEFT];
+  motor_cmds_[DifferentialCmdProc::DD_RIGHT] = cmds[DifferentialCmdProc::DD_RIGHT];
 }
 
 void RrECU::publish_callback_()
 {
+  std::lock_guard<std::mutex> lock(motor_mutex_);
+  publisher_->publish(mt_cmd_proc_->proc_odom(motor_cmds_));
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(rr_motor_controller::RrECU)

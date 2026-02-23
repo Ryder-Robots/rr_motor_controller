@@ -120,16 +120,16 @@ MotorCommand DifferentialCmdProc::make_cmd(double velocity)
   return cmd;
 }
 
-std::vector<MotorCommand> DifferentialCmdProc::proc_twist(geometry_msgs::msg::Twist twist)
+std::array<MotorCommand,2 > DifferentialCmdProc::proc_twist(geometry_msgs::msg::Twist twist)
 {
-  std::vector<MotorCommand> cmd = {};
+  std::array<MotorCommand, 2> cmd = {};
   if (!is_configured)
     return cmd;
   double v_left = twist.linear.x - (twist.angular.z * wheel_base_ / 2.0);
   double v_right = twist.linear.x + (twist.angular.z * wheel_base_ / 2.0);
 
-  cmd.push_back(make_cmd(v_left));
-  cmd.push_back(make_cmd(v_right));
+  cmd[DD_LEFT] = make_cmd(v_left);
+  cmd[DD_RIGHT] = make_cmd(v_right);
 
   command_history_[DD_LEFT].push_back(cmd[0]);
   command_history_[DD_RIGHT].push_back(cmd[1]);
@@ -137,7 +137,7 @@ std::vector<MotorCommand> DifferentialCmdProc::proc_twist(geometry_msgs::msg::Tw
   return cmd;
 }
 
-nav_msgs::msg::Odometry DifferentialCmdProc::proc_odom(const std::vector<MotorCommand>)
+nav_msgs::msg::Odometry DifferentialCmdProc::proc_odom(const std::array<MotorCommand, 2>)
 {
   nav_msgs::msg::Odometry odom;
   if (!is_configured)

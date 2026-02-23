@@ -21,7 +21,6 @@
 #pragma once
 #include "rr_motor_controller/motorcmdproc.hpp"
 #include "rr_motor_controller/visibility_control.h"
-#include <vector>
 #include <array>
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -75,10 +74,10 @@ public:
   void on_configure(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) override;
 
   /** @copydoc MotorCmdProc::proc_twist */
-  std::vector<MotorCommand> proc_twist(geometry_msgs::msg::Twist msg) override;
+  std::array<MotorCommand, 2> proc_twist(geometry_msgs::msg::Twist msg) override;
 
   /** @copydoc MotorCmdProc::proc_odom */
-  nav_msgs::msg::Odometry proc_odom(const std::vector<MotorCommand>) override;
+  nav_msgs::msg::Odometry proc_odom(const std::array<MotorCommand, 2>) override;
 
   /** Index of the left motor within command_history_ and integrated_distance_. */
   static constexpr int DD_LEFT = 0;

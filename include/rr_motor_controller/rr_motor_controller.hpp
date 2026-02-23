@@ -44,6 +44,7 @@
 #include "rr_interfaces/msg/motors.hpp"
 #include "rr_common_base/rr_constants.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
+#include "rr_motor_controller/rr_motor_controller_common.hpp"
 
 namespace rr_motor_controller
 {
@@ -81,6 +82,12 @@ public:
 
   CallbackReturn on_cleanup(const State& state);
 
+  /**
+   * @brief Subscription handler for Motors messages. Stores the requested
+   * target velocity and direction for the motor at motor_pos_.
+   */
+  void process_cmd(const MotorCommand req);
+
 protected:
   /**
    * @brief Encoder interrupt handler. Accumulates pulse timing over one full
@@ -88,12 +95,6 @@ protected:
    * Called from the GPIO interrupt context — must be lock-free.
    */
   void encoder_cb_(const int gpio_pin, const uint32_t delta_us, const uint32_t tick, const TickStatus tick_status);
-
-  /**
-   * @brief Subscription handler for Motors messages. Stores the requested
-   * target velocity and direction for the motor at motor_pos_.
-   */
-  void process_cmd(const rr_interfaces::msg::Motors& req);
 
   /**
    * @brief Wall timer callback. Computes duty cycle from target_velocity_
