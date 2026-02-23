@@ -80,6 +80,7 @@ CallbackReturn RrECU::on_activate(const State& state)
   {
     motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state);
     RCLCPP_FATAL(get_logger(), "failed to activate motor(s)");
+    gpio_plugin_->on_deactivate(state);
     return CallbackReturn::FAILURE;
   }
 
@@ -88,6 +89,7 @@ CallbackReturn RrECU::on_activate(const State& state)
     motors_[DifferentialCmdProc::DD_LEFT].on_deactivate(state);
     motors_[DifferentialCmdProc::DD_RIGHT].on_deactivate(state);
     RCLCPP_FATAL(get_logger(), "failed to activate motor(s)");
+    gpio_plugin_->on_deactivate(state);
     return CallbackReturn::FAILURE;
   }
 
