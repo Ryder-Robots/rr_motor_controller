@@ -32,7 +32,6 @@
 #include <cmath>
 #include <pthread.h>
 #include <sys/timerfd.h>
-#include <pluginlib/class_loader.hpp>
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rr_motor_controller/visibility_control.h"

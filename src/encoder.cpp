@@ -42,8 +42,8 @@ CallbackReturn MotorEncoder::configure(const rclcpp_lifecycle::State& previous_s
       return CallbackReturn::FAILURE;
     }
 
-    pin_ = static_cast<int>(node_->get_parameter("encoder_pin").as_integer_array().at(mpos));
-    timeout_ = static_cast<int>(node_->get_parameter("encoder_timeout").as_integer_array().at(mpos));
+    pin_ = static_cast<int>(node->get_parameter("encoder_pin").as_integer_array().at(mpos));
+    timeout_ = static_cast<int>(node->get_parameter("encoder_timeout").as_integer_array().at(mpos));
   }
 
   if (!tick_cb)

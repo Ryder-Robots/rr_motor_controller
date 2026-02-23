@@ -51,12 +51,14 @@ using TickStatus = rr_motor_controller::TickStatus;
 class RrMotorControllerTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    ctrl_ = std::make_shared<rr_motor_controller::RrMotorController>(rclcpp::NodeOptions());
+    ctrl_ = std::make_shared<rr_motor_controller::RrMotorController>();
+    node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_controller_node");
   }
 
   // Helper: put the controller into a testable state with known config
   // (bypasses pluginlib by setting fields directly)
   void configure_for_test(int ppr = 8, int wheel_radius = 20) {
+    ctrl_->node_ = node_;
     ctrl_->ppr_ = ppr;
     ctrl_->wheel_radius_ = wheel_radius;
     ctrl_->dpp_ = (2.0 * M_PI * wheel_radius) / ppr;
@@ -72,26 +74,14 @@ class RrMotorControllerTest : public ::testing::Test {
   }
 
   std::shared_ptr<rr_motor_controller::RrMotorController> ctrl_;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };
 
 // ---------------------------------------------------------------------------
-// Constructor / parameter declaration tests
-// ---------------------------------------------------------------------------
-
-TEST_F(RrMotorControllerTest, ConstructorDeclaresAllParameters) {
-  // Verify all 9 parameters are declared with expected defaults
-  EXPECT_EQ(ctrl_->get_parameter("motor_pos").as_int(), 0);
-  EXPECT_EQ(ctrl_->get_parameter("ppr").as_int(), 8);
-  EXPECT_EQ(ctrl_->get_parameter("wheel_radius").as_int(), 20);
-  EXPECT_EQ(ctrl_->get_parameter("transport_plugin").as_string(),
-            "rrobots::interfaces::RRGPIOInterface");
-  EXPECT_EQ(ctrl_->get_parameter("encoder_pin").as_int(), 0);
-  EXPECT_EQ(ctrl_->get_parameter("encoder_timeout").as_int(), 0);
-  EXPECT_EQ(ctrl_->get_parameter("pwm_pin").as_int(), -1);
-  EXPECT_EQ(ctrl_->get_parameter("dir_pin").as_int(), -1);
-  EXPECT_EQ(ctrl_->get_parameter("pwm_freq").as_int(), 2000);
-}
-
+// NOTE: ConstructorDeclaresAllParameters removed — RrMotorController is no
+// longer a lifecycle node. Parameters are declared and owned by the node
+// passed to on_configure(). Parameter declaration tests belong in the ECU
+// node tests (test_rr_motor_ecu_node or equivalent).
 // ---------------------------------------------------------------------------
 // encoder_cb_ — gating
 // ---------------------------------------------------------------------------
@@ -237,7 +227,7 @@ TEST_F(RrMotorControllerTest, SubscribeCallbackStoresVelocityAndDirection) {
   motor_entry.direction = false;  // BACKWARD
   msg.motors.push_back(motor_entry);
 
-  ctrl_->subscribe_callback_(msg);
+  ctrl_->process_cmd(msg);
 
   EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 42.0);
   EXPECT_EQ(ctrl_->direction_.load(), 0);  // false = BACKWARD = 0
@@ -256,7 +246,7 @@ TEST_F(RrMotorControllerTest, SubscribeCallbackUsesMotorPos) {
   msg.motors.push_back(m0);
   msg.motors.push_back(m1);
 
-  ctrl_->subscribe_callback_(msg);
+  ctrl_->process_cmd(msg);
 
   EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 77.0);
   EXPECT_EQ(ctrl_->direction_.load(), 0);
@@ -272,7 +262,7 @@ TEST_F(RrMotorControllerTest, SubscribeCallbackIgnoresShortMessage) {
   m0.velocity = 10;
   msg.motors.push_back(m0);  // only 1 entry, motor_pos_ = 2
 
-  ctrl_->subscribe_callback_(msg);
+  ctrl_->process_cmd(msg);
 
   // target_velocity_ should be unchanged
   EXPECT_DOUBLE_EQ(ctrl_->target_velocity_.load(), 99.0);

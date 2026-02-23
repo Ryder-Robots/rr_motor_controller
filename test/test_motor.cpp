@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <list>
+#include <vector>
 #include "rr_motor_controller/motor.hpp"
 #include "rclcpp/node.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -105,59 +106,59 @@ class MotorTest : public ::testing::Test {
 // Test configure with valid inputs
 TEST_F(MotorTest, ConfigureSuccess) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   rclcpp_lifecycle::State previous_state;
-  auto result = motor_->configure(previous_state, node, mock_gpio_);
+  auto result = motor_->configure(previous_state, node, mock_gpio_, 0);
   EXPECT_EQ(result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS);
 }
 
 TEST_F(MotorTest, ConfigureFailsWithNullNode) {
   rclcpp_lifecycle::State previous_state;
-  auto result = motor_->configure(previous_state, nullptr, mock_gpio_);
+  auto result = motor_->configure(previous_state, nullptr, mock_gpio_, 0);
   EXPECT_EQ(result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE);
 }
 
 TEST_F(MotorTest, ConfigureFailsWithNullGPIOPlugin) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
   rclcpp_lifecycle::State previous_state;
-  auto result = motor_->configure(previous_state, node, nullptr);
+  auto result = motor_->configure(previous_state, node, nullptr, 0);
   EXPECT_EQ(result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE);
 }
 
 TEST_F(MotorTest, ConfigureFailsWithInvalidPWMPin) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 99);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{99});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   // ensure mock pwm list does not contain 99
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
 
   rclcpp_lifecycle::State previous_state;
-  auto result = motor_->configure(previous_state, node, mock_gpio_);
+  auto result = motor_->configure(previous_state, node, mock_gpio_, 0);
   EXPECT_EQ(result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE);
 }
 
 TEST_F(MotorTest, ConfigureFailsWithDuplicatePins) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 12);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{12});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
 
   rclcpp_lifecycle::State previous_state;
-  auto result = motor_->configure(previous_state, node, mock_gpio_);
+  auto result = motor_->configure(previous_state, node, mock_gpio_, 0);
   EXPECT_EQ(result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE);
 }
 
 TEST_F(MotorTest, OnActivateSuccess) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
@@ -166,7 +167,7 @@ TEST_F(MotorTest, OnActivateSuccess) {
   mock_gpio_->gpio_hardware_pwm_result = 0;
 
   rclcpp_lifecycle::State prev_state;
-  auto config_result = motor_->configure(prev_state, node, mock_gpio_);
+  auto config_result = motor_->configure(prev_state, node, mock_gpio_, 0);
   EXPECT_EQ(config_result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS);
 
   auto activate_result = motor_->on_activate(prev_state);
@@ -179,15 +180,15 @@ TEST_F(MotorTest, OnActivateSuccess) {
 
 TEST_F(MotorTest, OnActivateFailsOnSetDirPinMode) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
   mock_gpio_->set_pin_mode_result = -1; // fail
 
   rclcpp_lifecycle::State prev_state;
-  motor_->configure(prev_state, node, mock_gpio_);
+  motor_->configure(prev_state, node, mock_gpio_, 0);
 
   auto activate_result = motor_->on_activate(prev_state);
   EXPECT_EQ(activate_result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE);
@@ -195,8 +196,8 @@ TEST_F(MotorTest, OnActivateFailsOnSetDirPinMode) {
 
 TEST_F(MotorTest, OnDeactivateSuccess) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
@@ -204,7 +205,7 @@ TEST_F(MotorTest, OnDeactivateSuccess) {
   mock_gpio_->digital_write_result = 0;
 
   rclcpp_lifecycle::State prev_state;
-  motor_->configure(prev_state, node, mock_gpio_);
+  motor_->configure(prev_state, node, mock_gpio_, 0);
 
   auto deactivate_result = motor_->on_deactivate(prev_state);
   EXPECT_EQ(deactivate_result, rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS);
@@ -212,15 +213,15 @@ TEST_F(MotorTest, OnDeactivateSuccess) {
 
 TEST_F(MotorTest, SetDirection) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
   mock_gpio_->digital_write_result = 0;
 
   rclcpp_lifecycle::State prev_state;
-  motor_->configure(prev_state, node, mock_gpio_);
+  motor_->configure(prev_state, node, mock_gpio_, 0);
 
   auto result = motor_->set_direction(rr_motor_controller::Motor::FORWARD);
   EXPECT_EQ(result, 0);
@@ -230,35 +231,35 @@ TEST_F(MotorTest, SetDirection) {
 
 TEST_F(MotorTest, SetPWM) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
   mock_gpio_->gpio_hardware_pwm_result = 0;
 
   rclcpp_lifecycle::State prev_state;
-  motor_->configure(prev_state, node, mock_gpio_);
+  motor_->configure(prev_state, node, mock_gpio_, 0);
 
   auto result = motor_->set_pwm(50);
   EXPECT_EQ(result, 0);
   EXPECT_EQ(mock_gpio_->last_pwm_pin, 12);
   EXPECT_EQ(mock_gpio_->last_pwm_freq, 700);
-  EXPECT_EQ(mock_gpio_->last_pwm_duty, 50 + rr_motor_controller::Motor::DUTY_OFFSET);
+  EXPECT_EQ(mock_gpio_->last_pwm_duty, 50 * rr_motor_controller::Motor::DUTY_OFFSET);
 }
 
 // Getting failures for this test on occassion.
 TEST_F(MotorTest, GetPWM) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
-  mock_gpio_->gpio_hardware_get_pwm_result = 50 + rr_motor_controller::Motor::DUTY_OFFSET;
+  mock_gpio_->gpio_hardware_get_pwm_result = 50 * rr_motor_controller::Motor::DUTY_OFFSET;
 
   rclcpp_lifecycle::State prev_state;
-  motor_->configure(prev_state, node, mock_gpio_);
+  motor_->configure(prev_state, node, mock_gpio_, 0);
 
   auto result = motor_->get_pwm();
   EXPECT_EQ(result, 50);
@@ -267,15 +268,15 @@ TEST_F(MotorTest, GetPWM) {
 
 TEST_F(MotorTest, GetDirection) {
   auto node = std::make_shared<rclcpp_lifecycle::LifecycleNode>("test_motor_node");
-  node->declare_parameter("pwm_pin", 12);
-  node->declare_parameter("dir_pin", 17);
+  node->declare_parameter("pwm_pin", std::vector<int64_t>{12});
+  node->declare_parameter("dir_pin", std::vector<int64_t>{17});
   node->declare_parameter("pwm_freq", 700);
 
   mock_gpio_->pwm_pins_list = {12, 13, 18, 19};
   mock_gpio_->digital_read_result = rr_motor_controller::Motor::FORWARD;
 
   rclcpp_lifecycle::State prev_state;
-  motor_->configure(prev_state, node, mock_gpio_);
+  motor_->configure(prev_state, node, mock_gpio_, 0);
 
   auto result = motor_->get_direction();
   EXPECT_EQ(result, rr_motor_controller::Motor::FORWARD);
