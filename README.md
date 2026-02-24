@@ -174,6 +174,18 @@ ros2 topic echo /odom
 - `rr_common_base` (GPIO plugin interface and constants)
 - `rr_interfaces` (shared message definitions)
 
+### Recommended: GPIO plugin for Raspberry Pi 4B
+
+For hardware deployment on a Raspberry Pi 4B, install `rr_gpio_pi4b_pigpio_plugin`. This plugin implements `rrobots::interfaces::RRGPIOInterface` using the `pigpio` library and is the value to supply for the `transport_plugin` parameter.
+
+It requires `pigpio` (`rrpigpio`), available from the Ryder Robots apt repository. If you have not already added the repository, follow the installation instructions above, then:
+
+```bash
+sudo apt install ros-kilted-rr-gpio-pi4b-pigpio-plugin
+```
+
+Source: [github.com/Ryder-Robots/rr_gpio_pi4b_pigpio_plugin](https://github.com/Ryder-Robots/rr_gpio_pi4b_pigpio_plugin)
+
 ## Roadmap
 
 ### PID Duty Conversion
