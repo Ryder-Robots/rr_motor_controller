@@ -192,6 +192,18 @@ Source: [github.com/Ryder-Robots/rr_gpio_pi4b_pigpio_plugin](https://github.com/
 
 Replace the current linear regression duty convertor with a closed-loop PID algorithm implementing the `DutyConversion` interface. The PID controller will use encoder feedback (measured velocity) and the target velocity to compute duty cycle adjustments each control period. Kp, Ki, and Kd coefficients will be exposed as ROS 2 parameters per motor, allowing runtime tuning to align individual motors to consistent velocity targets and compensate for per-motor mechanical variation.
 
+### Multi-Motor Support
+
+The current implementation is hardcoded for exactly two motors (`std::array<RrMotorController, 2>`). Multi-motor support will generalise this to a `std::vector` sized from the `motor_count` parameter, allowing the ECU to manage three or more driven wheels. The `MotorCmdProc` interface will be updated accordingly, and the `motorcmdproc.hpp` caveat note will be resolved.
+
+### Mecanum Wheel Kinematics
+
+Add a `MecanumCmdProc` implementation of the `MotorCmdProc` interface to support four-wheel mecanum drive. Mecanum kinematics decompose a `Twist` command into independent per-wheel velocities that enable full holonomic motion (forward, lateral, and rotational simultaneously). The drive layout will be selectable at launch time via a parameter, with differential drive remaining the default.
+
+### Raspberry Pi 5 GPIO Plugin (lgpio)
+
+The `pigpio` library used by `rr_gpio_pi4b_pigpio_plugin` is not compatible with the Raspberry Pi 5. A new `rr_gpio_pi5_lgpio_plugin` implementing `rrobots::interfaces::RRGPIOInterface` via `lgpio` (the recommended GPIO library for Pi 5) will provide equivalent functionality for that platform. Once available, the correct plugin is selected at launch time via the `transport_plugin` parameter, keeping the ECU node itself hardware-agnostic.
+
 ## License
 
 MIT License - Copyright (c) 2026 Ryder Robots
