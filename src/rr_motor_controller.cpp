@@ -67,26 +67,16 @@ CallbackReturn RrMotorController::on_configure(const State& state,
 
 CallbackReturn RrMotorController::on_activate(const State& state)
 {
-  // Activate plugin, this will create a hardware instance of the GPIO layer
-  if (gpio_plugin_ == nullptr || gpio_plugin_->on_activate(state) != CallbackReturn::SUCCESS)
-  {
-    RCLCPP_ERROR(node_->get_logger(), "Activation of gpio_plugin failed!!");
-    return CallbackReturn::FAILURE;
-  }
-
   // Activate first — if encoder fails, roll back motor.
   if (motor_.on_activate(state) != CallbackReturn::SUCCESS)
   {
     RCLCPP_ERROR(node_->get_logger(), "Motor activation failed!!");
-
-    gpio_plugin_->on_deactivate(state);
     return CallbackReturn::FAILURE;
   }
 
   if (encoder_.on_activate(state) != CallbackReturn::SUCCESS)
   {
     motor_.on_deactivate(state);
-    gpio_plugin_->on_deactivate(state);
     RCLCPP_ERROR(node_->get_logger(), "Encoder activation failed!!");
     return CallbackReturn::FAILURE;
   }
@@ -138,11 +128,6 @@ CallbackReturn RrMotorController::on_deactivate(const State& state)
   if (motor_.on_deactivate(state) != CallbackReturn::SUCCESS)
   {
     RCLCPP_ERROR(node_->get_logger(), "Motor deactivation failed!!");
-    rv = CallbackReturn::FAILURE;
-  }
-  if (gpio_plugin_->on_deactivate(state) != CallbackReturn::SUCCESS)
-  {
-    RCLCPP_ERROR(node_->get_logger(), "GPIO plugin deactivation failed!!");
     rv = CallbackReturn::FAILURE;
   }
 

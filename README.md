@@ -1,6 +1,6 @@
 # rr_motor_controller
 
-Lifecycle-managed ROS 2 node that drives a single DC motor and encoder pair. Each instance controls one motor identified by its position in the `rr_interfaces/msg/Motors` message array.
+Lifecycle-managed ROS 2 ECU node for a differential-drive robot. `RrECU` accepts `geometry_msgs/msg/Twist` velocity commands and distributes them to two `RrMotorController` instances (left and right), each driving a DC motor and encoder pair via a shared GPIO plugin.
 
 ## Installation
 
@@ -16,54 +16,45 @@ sudo apt install ros-kilted-rr-motor-controller
 
 ## Control Loop
 
-1. **subscribe_callback_** receives `Motors` messages on `/motors_command` and stores the target velocity and direction for this motor.
-2. **encoder_cb_** runs in GPIO interrupt context, accumulating pulse timing over one full revolution and computing measured velocity via EMA smoothing.
-3. **pid_cb_** fires on a 100 ms wall timer, converts target velocity to a PWM duty cycle (currently via linear regression), and applies it to the motor.
-4. **publish_callback_** fires on a 200 ms wall timer, publishing velocity and diagnostic counters to `/motors_command<motor_pos>/stats`.
+1. **subscribe_callback_** receives `Twist` messages on `/cmd_vel` and converts them to per-motor velocity and direction commands using a differential-drive kinematic model.
+2. **encoder_cb_** runs in GPIO interrupt context per motor, accumulating pulse timing over one full revolution and computing measured velocity via EMA smoothing.
+3. **pid_cb_** runs in a dedicated `SCHED_FIFO` thread per motor, converting target velocity to a PWM duty cycle (currently via linear regression) and applying it to the motor at a fixed 100 ms interval.
+4. **publish_callback_** fires on a 250 ms wall timer, publishing estimated pose and velocity to `/odom`.
 
 ## Lifecycle Transitions
 
 | Transition | What happens |
 |---|---|
-| **configure** | Loads parameters, computes distance-per-pulse, initialises GPIO plugin, configures motor and encoder hardware |
-| **activate** | Sets pin modes, attaches encoder ISR, creates subscription/publisher/timers, starts control loop |
-| **deactivate** | Stops timers, tears down ROS interfaces, detaches ISR, sets PWM to 0, resets direction |
-| **cleanup** | Releases encoder tick callback |
+| **configure** | Loads parameters, loads GPIO plugin, configures left and right motor controllers |
+| **activate** | Activates GPIO plugin, sets pin modes, attaches encoder ISRs, creates `/cmd_vel` subscription and `/odom` publisher, starts control loops |
+| **deactivate** | Cancels timers, tears down ROS interfaces, stops PID threads, detaches ISRs, sets PWM to 0 |
+| **cleanup** | Releases plugin loader, resets all shared pointers |
 
 ## Parameters
 
-All parameters are declared in the `RrMotorController` constructor.
-
-### Controller Parameters
+All parameters are declared in the `RrECU` constructor.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `motor_pos` | int | `0` | Index into the `Motors` message array identifying which motor this node controls |
-| `ppr` | int | `8` | Pulses per revolution from the encoder |
-| `wheel_radius` | int | `20` | Wheel radius in mm, used to compute distance per pulse |
-| `transport_plugin` | string | `"rrobots::interfaces::RRGPIOInterface"` | Pluginlib class name for the GPIO transport layer |
-
-### Motor Parameters
-
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `pwm_pin` | int | `-1` | GPIO pin used for hardware PWM output |
-| `dir_pin` | int | `-1` | GPIO pin used for motor direction control |
-| `pwm_freq` | int | `2000` | PWM frequency in Hz (TC78H660FTG accepts DC to 400 kHz; 500 Hz - 1 kHz typical for small motors) |
-
-### Encoder Parameters
-
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `encoder_pin` | int | `0` | GPIO pin connected to the encoder (hall sensor) output |
-| `encoder_timeout` | int | `0` | Interrupt timeout in microseconds; 0 disables timeout callbacks |
+| `motor_count` | int | `0` | Number of motors to manage (must be 2 for differential drive) |
+| `encoder_pins` | int[] | `[]` | GPIO pins connected to each encoder — **one entry per motor**, ordered by motor index (index 0 = left, index 1 = right) |
+| `pwm_pins` | int[] | `[]` | GPIO pins used for PWM output — **one entry per motor**, same index order as `encoder_pins` |
+| `dir_pins` | int[] | `[]` | GPIO pins used for direction control — **one entry per motor**, same index order as `encoder_pins` |
+| `ppr` | int | `8` | Pulses per revolution (shared across motors) |
+| `wheel_radius` | int | `20` | Wheel radius in mm (assumed uniform). Default of 20 mm corresponds to wheels with a 40 mm diameter |
+| `wheel_base` | int | `70` | Distance in mm between the contact points of the left and right wheels |
+| `pwm_freq` | int | `2000` | PWM frequency in Hz |
+| `encoder_timeout` | int | `0` | ISR timeout in µs; 0 disables timeout callbacks |
+| `ttl_ns` | int | `200000000` | Command time-to-live in nanoseconds; commands older than this are discarded |
+| `covariance` | double[] | `[]` | 36-element row-major 6×6 pose covariance matrix written to `odom.pose.covariance`. Diagonal elements represent variance for [x, y, z, roll, pitch, yaw]. z, roll, and pitch are not tracked (flat floor), so their diagonal entries should be set to a large value (e.g. `1e6`) to signal high uncertainty to the navigation stack |
+| `transport_plugin` | string | — | Pluginlib class name for the GPIO transport layer. For Raspberry Pi 4B use `rr_gpio_pi4b_pigpio_plugin::RrGpioPi4BPigpioPlugin` (see [rr_gpio_pi4b_pigpio_plugin](https://github.com/Ryder-Robots/rr_gpio_pi4b_pigpio_plugin)) |
 
 ## Topics
 
 | Topic | Type | Direction | Description |
 |---|---|---|---|
-| `/motors_command` | `rr_interfaces/msg/Motors` | Subscribe | Receives target velocity and direction commands |
-| `/motors_command<N>/stats` | `rr_interfaces/msg/MotorResponse` | Publish | Publishes velocity, total pulses, healthy pulses, and boundary trigger counts (where `<N>` is `motor_pos`) |
+| `/cmd_vel` | `geometry_msgs/msg/Twist` | Subscribe | Linear and angular velocity commands from the navigation stack |
+| `/odom` | `nav_msgs/msg/Odometry` | Publish | Estimated robot pose and velocity, published at 250 ms |
 
 ## Example Usage
 
@@ -71,26 +62,48 @@ All parameters are declared in the `RrMotorController` constructor.
 
 ```python
 from launch import LaunchDescription
-from launch_ros.actions import LifecycleNode
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 def generate_launch_description():
     return LaunchDescription([
-        LifecycleNode(
-            package='rr_motor_controller',
-            executable='rr_motor_controller_node',
-            name='motor_left',
+        ComposableNodeContainer(
+            name='motor_container',
             namespace='',
-            parameters=[{
-                'motor_pos': 0,
-                'ppr': 8,
-                'wheel_radius': 33,
-                'transport_plugin': 'rrobots::interfaces::RRGPIOInterface',
-                'pwm_pin': 12,
-                'dir_pin': 24,
-                'pwm_freq': 1000,
-                'encoder_pin': 17,
-                'encoder_timeout': 500000,
-            }],
+            package='rclcpp_components',
+            executable='component_container',
+            composable_node_descriptions=[
+                ComposableNode(
+                    package='rr_motor_controller',
+                    plugin='rr_motor_controller::RrECU',
+                    name='motor_ecu',
+                    parameters=[{
+                        'motor_count': 2,
+                        'ppr': 8,
+                        'wheel_radius': 20,   # 20 mm radius = 40 mm diameter wheels
+                        'wheel_base':   70,   # 70 mm between left and right wheel contact points
+                        'pwm_freq': 1000,
+                        # One pin per motor: index 0 = left, index 1 = right
+                        'encoder_pins': [17, 27],
+                        'pwm_pins':     [12, 13],
+                        'dir_pins':     [24, 25],
+                        'encoder_timeout': 500000,
+                        # Raspberry Pi 4B GPIO plugin — see https://github.com/Ryder-Robots/rr_gpio_pi4b_pigpio_plugin
+                        'transport_plugin': 'rr_gpio_pi4b_pigpio_plugin::RrGpioPi4BPigpioPlugin',
+                        # 6×6 row-major pose covariance [x, y, z, roll, pitch, yaw].
+                        # Diagonal: x=0.01, y=0.01, z=1e6, roll=1e6, pitch=1e6, yaw=0.01
+                        # z, roll, pitch set to 1e6 — not tracked on a flat floor.
+                        'covariance': [
+                            0.01, 0.0,  0.0,  0.0,  0.0,  0.0,
+                            0.0,  0.01, 0.0,  0.0,  0.0,  0.0,
+                            0.0,  0.0,  1e6,  0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  1e6,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  1e6,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.01,
+                        ],
+                    }],
+                ),
+            ],
         ),
     ])
 ```
@@ -99,74 +112,69 @@ def generate_launch_description():
 
 ```bash
 # Configure the node (loads parameters, initialises hardware)
-ros2 lifecycle set /motor_left configure
+ros2 lifecycle set /motor_ecu configure
 
-# Activate the node (starts control loop)
-ros2 lifecycle set /motor_left activate
+# Activate the node (starts control loops)
+ros2 lifecycle set /motor_ecu activate
 
-# Deactivate the node (stops motor, tears down)
-ros2 lifecycle set /motor_left deactivate
+# Deactivate the node (stops motors, tears down)
+ros2 lifecycle set /motor_ecu deactivate
 
-# Cleanup (releases callbacks)
-ros2 lifecycle set /motor_left cleanup
+# Cleanup (releases all resources)
+ros2 lifecycle set /motor_ecu cleanup
 ```
 
 ### Checking node state
 
 ```bash
-ros2 lifecycle get /motor_left
+ros2 lifecycle get /motor_ecu
 ```
 
-### Sending motor commands via Python script
+### Sending commands with send_motors_command.py
 
-A helper script is provided in `scripts/send_motors_command.py` to publish a `Motors` message targeting motor index 0.
+A helper script in `scripts/send_motors_command.py` publishes `Twist` commands to `/cmd_vel` and times each maneuver automatically.
 
 ```bash
-# Send a forward command at velocity 50
-python3 scripts/send_motors_command.py --direction forward --velocity 50
-
-# Send a reverse command at velocity 30
-python3 scripts/send_motors_command.py --direction reverse --velocity 30
-
-# Defaults to forward direction with velocity 0 (stopped)
+# List all available maneuvers
 python3 scripts/send_motors_command.py
+
+# Run a specific maneuver by number
+python3 scripts/send_motors_command.py --maneuver 1
 ```
 
-| Argument | Values | Default | Description |
-|---|---|---|---|
-| `--direction` | `forward`, `reverse` | `forward` | Motor direction |
-| `--velocity` | integer | `0` | PWM duty cycle value |
+| # | Description | `linear.x` (m/s) | `angular.z` (rad/s) | Duration |
+| --- | --- | --- | --- | --- |
+| 1 | Move 300 mm forward  @ 0.70 m/s | +0.70 | 0.0 | 0.429 s |
+| 2 | Move 300 mm backward @ 0.70 m/s | −0.70 | 0.0 | 0.429 s |
+| 3 | Move 300 mm forward  @ 0.86 m/s | +0.86 | 0.0 | 0.349 s |
+| 4 | Move 300 mm backward @ 0.86 m/s | −0.86 | 0.0 | 0.349 s |
+| 5 | Move 300 mm forward  @ 0.95 m/s | +0.95 | 0.0 | 0.316 s |
+| 6 | Move 300 mm backward @ 0.95 m/s | −0.95 | 0.0 | 0.316 s |
+| 7 | Rotate CW  45°  @ 0.75 rad/s | 0.0 | −0.75 | 1.047 s |
+| 8 | Rotate CCW 45°  @ 0.75 rad/s | 0.0 | +0.75 | 1.047 s |
+| 9 | Rotate CW  360° @ 0.75 rad/s | 0.0 | −0.75 | 8.378 s |
+| 10 | Rotate CCW 360° @ 0.75 rad/s | 0.0 | +0.75 | 8.378 s |
+| 11 | Arc CW  300 mm / 45° @ 0.86 m/s | +0.86 | −2.251 | 0.349 s |
+| 12 | Arc CCW 300 mm / 45° @ 0.86 m/s | +0.86 | +2.251 | 0.349 s |
 
-The script waits for a subscriber to be discovered before publishing.
+Arc maneuvers (11, 12) derive angular velocity as `ω = θ · v / s` so the robot turns exactly 45° while travelling 300 mm along the arc.
 
-### Monitoring output
-
-The motor controller publishes feedback on `/motors_command<N>/stats` (where `<N>` is the `motor_pos` parameter). The response message (`rr_interfaces/msg/MotorResponse`) contains:
-
-| Field | Type | Description |
-|---|---|---|
-| `velocity` | float64 | Average pulses per second |
-| `total_pulses` | int32 | Total pulse count since motor started |
-| `healthy_pulses` | int32 | Pulses within the expected range |
-| `boundary_triggers` | int32 | Pulses at the edge of a rotation |
+### Monitoring odometry
 
 ```bash
-# Watch velocity and diagnostics for motor 0
-ros2 topic echo /motors_command0/stats
+ros2 topic echo /odom
 ```
 
 ## Dependencies
 
-- `rclcpp` / `rclcpp_lifecycle`
+- `rclcpp` / `rclcpp_lifecycle` / `rclcpp_components`
 - `pluginlib`
+- `nav_msgs`
+- `tf2` / `tf2_geometry_msgs`
 - `rr_common_base` (GPIO plugin interface and constants)
-- `rr_interfaces` (Motors and MotorResponse message definitions)
+- `rr_interfaces` (shared message definitions)
 
 ## Roadmap
-
-### ECU Node (Twist to Motors)
-
-Add an ECU (Electronic Control Unit) class that subscribes to `geometry_msgs/msg/Twist` commands from the ROS 2 navigation stack and converts them into `rr_interfaces/msg/Motors` command messages for 1 to N motor controllers. The ECU will decompose linear and angular velocity into per-motor target velocities using a differential drive model. Angular velocity is strictly subtractive: turning is achieved by reducing velocity on motors on the inside of the turn, never by increasing velocity on the opposite side. This ensures the vehicle's maximum speed is bounded by the linear velocity command alone.
 
 ### PID Duty Conversion
 
