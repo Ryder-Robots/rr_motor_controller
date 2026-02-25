@@ -18,6 +18,7 @@ find_package(pluginlib REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(nav2_util REQUIRED)
 
 add_library(rr_motor_controller 
   src/rr_motor_controller.cpp
@@ -43,6 +44,7 @@ target_link_libraries(
   ${nav_msgs_TARGETS}
   ${tf2_TARGETS}
   ${tf2_geometry_msgs_TARGETS}
+  ${nav2_util_TARGETS}
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,

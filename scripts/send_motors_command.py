@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Send geometry_msgs/msg/Twist commands to /cmd_vel to test the motor ECU.
+
+"""
+Send geometry_msgs/msg/Twist commands to /cmd_vel to test the motor ECU.
 
 Maneuvers publish continuously at PUBLISH_HZ for the calculated duration, then
 send a zero Twist to stop the robot. This ensures commands do not expire before
@@ -14,8 +16,8 @@ import argparse
 import math
 import time
 
-import rclpy
 from geometry_msgs.msg import Twist
+import rclpy
 from rclpy.node import Node
 
 PUBLISH_HZ = 10  # republish rate (Hz) while a maneuver is running
@@ -30,22 +32,28 @@ _ARC_THETA = math.pi / 4          # 45 degrees in radians
 _ARC_W = _ARC_THETA * _V2 / _DIST  # omega for 300 mm / 45 deg arc at _V2
 
 MANEUVERS: dict[int, tuple[str, float, float, float]] = {
-    1:  ("Move 300 mm forward  @ 0.70 m/s",  +_V1,   0.0,          _DIST / _V1),
-    2:  ("Move 300 mm backward @ 0.70 m/s",  -_V1,   0.0,          _DIST / _V1),
-    3:  ("Move 300 mm forward  @ 0.86 m/s",  +_V2,   0.0,          _DIST / _V2),
-    4:  ("Move 300 mm backward @ 0.86 m/s",  -_V2,   0.0,          _DIST / _V2),
-    5:  ("Move 300 mm forward  @ 0.95 m/s",  +_V3,   0.0,          _DIST / _V3),
-    6:  ("Move 300 mm backward @ 0.95 m/s",  -_V3,   0.0,          _DIST / _V3),
-    7:  ("Rotate CW  45°  @ 0.75 rad/s",      0.0,  -_ROT_W,       _ARC_THETA / _ROT_W),
-    8:  ("Rotate CCW 45°  @ 0.75 rad/s",      0.0,  +_ROT_W,       _ARC_THETA / _ROT_W),
-    9:  ("Rotate CW  360° @ 0.75 rad/s",      0.0,  -_ROT_W,       2.0 * math.pi / _ROT_W),
-    10: ("Rotate CCW 360° @ 0.75 rad/s",      0.0,  +_ROT_W,       2.0 * math.pi / _ROT_W),
-    11: ("Arc CW  300 mm / 45° @ 0.86 m/s",  +_V2,  -_ARC_W,       _DIST / _V2),
-    12: ("Arc CCW 300 mm / 45° @ 0.86 m/s",  +_V2,  +_ARC_W,       _DIST / _V2),
+    1:  ('Move 300 mm forward  @ 0.70 m/s',  +_V1,   0.0,          _DIST / _V1),
+    2:  ('Move 300 mm backward @ 0.70 m/s',  -_V1,   0.0,          _DIST / _V1),
+    3:  ('Move 300 mm forward  @ 0.86 m/s',  +_V2,   0.0,          _DIST / _V2),
+    4:  ('Move 300 mm backward @ 0.86 m/s',  -_V2,   0.0,          _DIST / _V2),
+    5:  ('Move 300 mm forward  @ 0.95 m/s',  +_V3,   0.0,          _DIST / _V3),
+    6:  ('Move 300 mm backward @ 0.95 m/s',  -_V3,   0.0,          _DIST / _V3),
+    7:  ('Rotate CW  45°  @ 0.75 rad/s',      0.0,  -_ROT_W,       _ARC_THETA / _ROT_W),
+    8:  ('Rotate CCW 45°  @ 0.75 rad/s',      0.0,  +_ROT_W,       _ARC_THETA / _ROT_W),
+    9:  ('Rotate CW  360° @ 0.75 rad/s',      0.0,  -_ROT_W,       2.0 * math.pi / _ROT_W),
+    10: ('Rotate CCW 360° @ 0.75 rad/s',      0.0,  +_ROT_W,       2.0 * math.pi / _ROT_W),
+    11: ('Arc CW  300 mm / 45° @ 0.86 m/s',  +_V2,  -_ARC_W,       _DIST / _V2),
+    12: ('Arc CCW 300 mm / 45° @ 0.86 m/s',  +_V2,  +_ARC_W,       _DIST / _V2),
 }
 
 
-def _run_maneuver(node: Node, publisher, linear_x: float, angular_z: float, duration: float) -> None:
+def _run_maneuver(
+    node: Node,
+    publisher,
+    linear_x: float,
+    angular_z: float,
+    duration: float
+) -> None:
     move = Twist()
     move.linear.x = linear_x
     move.angular.z = angular_z

@@ -21,7 +21,7 @@
 #pragma once
 #include "rr_motor_controller/visibility_control.h"
 #include <pluginlib/class_loader.hpp>
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "nav2_util/lifecycle_node.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -53,7 +53,7 @@ namespace rr_motor_controller
  *
  * @note Currently only a 2-motor differential drive layout is planned.
  */
-class RrECU : public rclcpp_lifecycle::LifecycleNode
+class RrECU : public nav2_util::LifecycleNode
 {
   using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
   using State = rclcpp_lifecycle::State;
@@ -68,7 +68,7 @@ public:
    *
    * @param options Node options forwarded from the composable node container.
    */
-  explicit RrECU(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("RrECU", options)
+  explicit RrECU(const rclcpp::NodeOptions& options) : nav2_util::LifecycleNode("RrECU", "driver", options)
   {
     declare_parameter("encoder_pins", std::vector<int64_t>{});  // one encoder pin per motor
     declare_parameter("pwm_pins", std::vector<int64_t>{});      // one PWM pin per motor
