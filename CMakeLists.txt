@@ -116,6 +116,19 @@ if(BUILD_TESTING)
   target_link_libraries(test_differential rr_motor_controller)
 endif()
 
+ament_export_dependencies(
+  nav_msgs
+  nav2_util
+  tf2
+  tf2_geometry_msgs
+  rclcpp
+  rclcpp_lifecycle
+  rclcpp_components
+  rclcpp_action
+  pluginlib
+  rr_common_base
+  rr_interfaces
+)
 
 rclcpp_components_register_nodes(rr_motor_controller
   "rr_motor_controller::RrECU"
