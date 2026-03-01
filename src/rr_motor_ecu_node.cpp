@@ -56,6 +56,7 @@ CallbackReturn RrECU::on_configure(const State& state)
   mt_cmd_proc_ = std::make_unique<DifferentialCmdProc>();
   mt_cmd_proc_->on_configure(this->shared_from_this());
 
+  motor_count_ = get_parameter_or("motor_count", 2);
   // Configure motors
   if (motors_[DifferentialCmdProc::DD_LEFT].on_configure(state, this->shared_from_this(), DifferentialCmdProc::DD_LEFT,
                                                          gpio_plugin_) != CallbackReturn::SUCCESS ||
@@ -108,7 +109,7 @@ CallbackReturn RrECU::on_activate(const State& state)
 CallbackReturn RrECU::on_deactivate(const State& state)
 {
   CallbackReturn rv = CallbackReturn::SUCCESS;
-  
+
   timer_->cancel();
   publisher_->on_deactivate();
   subscription_.reset();
@@ -134,6 +135,13 @@ CallbackReturn RrECU::on_cleanup(const State& state)
 {
   (void)state;
   RCLCPP_INFO(this->get_logger(), "Cleaning up motor ECU...");
+
+  // max motors defined as 2 for now, this will change
+  // after further newer implentation
+  for (int i = 0; i < std::min(motor_count_, 2); i++)
+  {
+    motors_[i].on_cleanup(state);
+  }
 
   timer_.reset();
   gpio_plugin_.reset();

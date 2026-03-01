@@ -29,6 +29,7 @@
 #include "rr_motor_controller/rr_motor_controller.hpp"
 #include "rr_motor_controller/rr_motor_controller_common.hpp"
 #include "rr_motor_controller/motorcmdproc.hpp"
+#include <algorithm>
 
 // TODO: this can be deprecated if different robots become a plugin.
 #include "rr_motor_controller/differential.hpp"
@@ -118,6 +119,7 @@ private:
   // Motor controllers, one per physical motor. Indexed by motor position.
   // allocate memory to stack, since these will not change.
   std::array<RrMotorController, 2> motors_;
+  int motor_count_ = 0;
 
   std::unique_ptr<MotorCmdProc> mt_cmd_proc_{ nullptr };
 

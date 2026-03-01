@@ -82,7 +82,7 @@ CallbackReturn MotorEncoder::on_activate(const rclcpp_lifecycle::State& previous
   }
   last_tick_ = gpio_plugin_->tick();
   if (gpio_plugin_->set_isr_func_ex(pin_, rrobots::interfaces::RRGPIOInterface::RRGPIO_RISING_EDGE, timeout_,
-                                    &MotorEncoder::gpio_isr_func, this) != 0)
+                                    &MotorEncoder::gpio_isr_func, this) < 0)
   {
     RCLCPP_ERROR(rclcpp::get_logger("MotorEncoder"), "could not attach ISR callback to pin %d...", pin_);
     return CallbackReturn::FAILURE;
